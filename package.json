@@ -1,0 +1,53 @@
+{
+  "name": "lark-quick-memo",
+  "private": true,
+  "version": "0.1.0",
+  "engines": { "node": ">=18" },
+  "dependencies": { "@raycast/api": "^1.102.6" },
+  "scripts": {
+    "dev": "ray",
+    "build": "ray build",
+    "lint": "echo \"(optional) add eslint\""
+  },
+  "raycast": {
+    "schemaVersion": 1,
+    "title": "Lark Quick Memo",
+    "icon": "📨",
+    "author": "Morio",
+    "commands": [
+      {
+        "name": "quick-memo",
+        "title": "Send Memo to Lark",
+        "mode": "view",
+        "arguments": [],
+        "shortcut": { "key": "m", "modifiers": ["cmd", "shift"] }
+      }
+    ],
+    "preferences": [
+      {
+        "name": "larkDomain",
+        "type": "dropdown",
+        "title": "Lark Domain",
+        "data": [
+          { "title": "open.larksuite.com", "value": "https://open.larksuite.com" },
+          { "title": "open.feishu.cn", "value": "https://open.feishu.cn" }
+        ],
+        "default": "https://open.larksuite.com"
+      },
+      { "name": "appId", "type": "password", "title": "App ID" },
+      { "name": "appSecret", "type": "password", "title": "App Secret" },
+      {
+        "name": "receiveIdType",
+        "type": "dropdown",
+        "title": "Receive ID Type",
+        "data": [
+          { "title": "email", "value": "email" },
+          { "title": "open_id", "value": "open_id" }
+        ],
+        "default": "email"
+      },
+      { "name": "receiveId", "type": "text", "title": "Receive ID (your email or open_id)" },
+      { "name": "prefixTimestamp", "type": "checkbox", "title": "Prefix Timestamp", "default": true }
+    ]
+  }
+}
