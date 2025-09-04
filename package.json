@@ -12,12 +12,16 @@
   "raycast": {
     "schemaVersion": 1,
     "title": "Lark Quick Memo",
-    "icon": "📨",
+    "icon": "icon.png",
     "author": "Morio",
+    "categories": ["Productivity"],
+    "license": "MIT",
     "commands": [
       {
         "name": "quick-memo",
         "title": "Send Memo to Lark",
+        "subtitle": "Send quick memo to Lark/Feishu",
+        "description": "Send a text memo to your Lark/Feishu DM with one action",
         "mode": "view",
         "arguments": [],
         "shortcut": { "key": "m", "modifiers": ["cmd", "shift"] }
