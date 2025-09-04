@@ -1,57 +1,106 @@
 {
+  "$schema": "https://www.raycast.com/schemas/extension.json",
   "name": "lark-quick-memo",
-  "private": true,
-  "version": "0.1.0",
-  "engines": { "node": ">=18" },
-  "dependencies": { "@raycast/api": "^1.102.6" },
-  "scripts": {
-    "dev": "ray",
-    "build": "ray build",
-    "lint": "echo \"(optional) add eslint\""
+  "title": "Lark Quick Memo",
+  "description": "Send quick memos to Lark/Feishu with one action",
+  "icon": "icon.png",
+  "author": "morio",
+  "categories": [
+    "Productivity"
+  ],
+  "license": "MIT",
+  "commands": [
+    {
+      "name": "quick-memo",
+      "title": "Send Memo to Lark",
+      "subtitle": "Send quick memo to Lark/Feishu",
+      "description": "Send a text memo to your Lark/Feishu DM with one action",
+      "mode": "view"
+    }
+  ],
+  "preferences": [
+    {
+      "name": "larkDomain",
+      "type": "dropdown",
+      "required": true,
+      "title": "Lark Domain",
+      "description": "Choose your Lark/Feishu environment",
+      "default": "https://open.larksuite.com",
+      "data": [
+        {
+          "title": "Global (open.larksuite.com)",
+          "value": "https://open.larksuite.com"
+        },
+        {
+          "title": "China (open.feishu.cn)",
+          "value": "https://open.feishu.cn"
+        }
+      ]
+    },
+    {
+      "name": "appId",
+      "type": "password",
+      "required": true,
+      "title": "App ID",
+      "description": "Your Lark app ID from developer console"
+    },
+    {
+      "name": "appSecret",
+      "type": "password",
+      "required": true,
+      "title": "App Secret",
+      "description": "Your Lark app secret from developer console"
+    },
+    {
+      "name": "receiveIdType",
+      "type": "dropdown",
+      "required": true,
+      "title": "Receive ID Type",
+      "description": "Type of recipient identifier",
+      "default": "email",
+      "data": [
+        {
+          "title": "Email",
+          "value": "email"
+        },
+        {
+          "title": "Open ID",
+          "value": "open_id"
+        }
+      ]
+    },
+    {
+      "name": "receiveId",
+      "type": "textfield",
+      "required": true,
+      "title": "Receive ID",
+      "description": "Your Lark login email or open_id"
+    },
+    {
+      "name": "prefixTimestamp",
+      "type": "checkbox",
+      "required": false,
+      "title": "Prefix Timestamp",
+      "description": "Add timestamp prefix to messages",
+      "default": true,
+      "label": "Add timestamp prefix"
+    }
+  ],
+  "dependencies": {
+    "@raycast/api": "^1.102.6"
   },
-  "raycast": {
-    "schemaVersion": 1,
-    "title": "Lark Quick Memo",
-    "icon": "icon.png",
-    "author": "Morio",
-    "categories": ["Productivity"],
-    "license": "MIT",
-    "commands": [
-      {
-        "name": "quick-memo",
-        "title": "Send Memo to Lark",
-        "subtitle": "Send quick memo to Lark/Feishu",
-        "description": "Send a text memo to your Lark/Feishu DM with one action",
-        "mode": "view",
-        "arguments": [],
-        "shortcut": { "key": "m", "modifiers": ["cmd", "shift"] }
-      }
-    ],
-    "preferences": [
-      {
-        "name": "larkDomain",
-        "type": "dropdown",
-        "title": "Lark Domain",
-        "data": [
-          { "title": "open.larksuite.com", "value": "https://open.larksuite.com" },
-          { "title": "open.feishu.cn", "value": "https://open.feishu.cn" }
-        ],
-        "default": "https://open.larksuite.com"
-      },
-      { "name": "appId", "type": "password", "title": "App ID" },
-      { "name": "appSecret", "type": "password", "title": "App Secret" },
-      {
-        "name": "receiveIdType",
-        "type": "dropdown",
-        "title": "Receive ID Type",
-        "data": [
-          { "title": "email", "value": "email" },
-          { "title": "open_id", "value": "open_id" }
-        ],
-        "default": "email"
-      },
-      { "name": "receiveId", "type": "text", "title": "Receive ID (your email or open_id)" },
-      { "name": "prefixTimestamp", "type": "checkbox", "title": "Prefix Timestamp", "default": true }
-    ]
+  "devDependencies": {
+    "@raycast/utils": "^1.19.0",
+    "@types/node": "20.8.10",
+    "@types/react": "^18.3.24",
+    "typescript": "^5.4.5"
+  },
+  "scripts": {
+    "build": "ray build -e dist",
+    "dev": "ray develop",
+    "fix-lint": "ray lint --fix",
+    "lint": "ray lint",
+    "prepublishOnly": "echo \"\\n\\nIt seems like you are trying to publish the Raycast extension to npm.\\n\\nIf you did intend to publish it to npm, remove the \\`prepublishOnly\\` script and rerun \\`npm publish\\` again.\\nIf you wanted to publish it to the Raycast Store instead, use \\`npm run publish\\` instead.\\n\\n\" && exit 1",
+    "publish": "npx @raycast/api@latest publish"
   }
 }

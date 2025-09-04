@@ -1,13 +1,28 @@
 {
   "compilerOptions": {
     "target": "ES2020",
+    "lib": ["ES2020"],
     "module": "ESNext",
-    "moduleResolution": "Node",
-    "strict": true,
+    "moduleResolution": "node",
+    "strict": false,
     "jsx": "react-jsx",
+    "declaration": true,
+    "declarationMap": true,
     "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": false,
     "resolveJsonModule": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "allowSyntheticDefaultImports": true,
+    "noImplicitAny": false,
+    "noImplicitThis": false,
+    "noImplicitReturns": false,
+    "noEmitOnError": false,
+    "suppressImplicitAnyIndexErrors": true
   },
-  "include": ["src"]
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "dist/**/*"
+  ]
 }

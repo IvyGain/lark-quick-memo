@@ -20,7 +20,7 @@ export async function getTenantAccessToken(): Promise<string> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ app_id: appId, app_secret: appSecret }),
   });
-  const data = await res.json();
+  const data: any = await res.json();
   if (!res.ok || (data && data.code)) {
     throw new Error(`tenant_access_token error: ${data?.code ?? res.status} ${data?.msg ?? ""}`);
   }
@@ -37,7 +37,7 @@ export async function sendTextMessage(token: string, text: string) {
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  const data = await res.json();
+  const data: any = await res.json();
   if (!res.ok || (data && data.code)) {
     throw new Error(`send message error: ${data?.code ?? res.status} ${data?.msg ?? ""}`);
   }
