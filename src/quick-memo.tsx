@@ -6,13 +6,15 @@ import {
   getPreferenceValues, 
   useNavigation,
   Detail,
-  openExtensionPreferences
+  openExtensionPreferences,
+  LocalStorage
 } from "@raycast/api";
 import { useState, useEffect } from "react";
 import { decorateWithTimestamp, withExponentialBackoff } from "./utils";
 import { getTenantAccessToken, sendTextMessage } from "./lark";
 import { isSetupComplete, getSetupStatus } from "./utils/setup-checker";
 import OnboardingWizard from "./onboarding";
+import { Language, getTranslation } from "./locales/translations";
 
 type Prefs = {
   prefixTimestamp?: boolean;
@@ -22,9 +24,18 @@ export default function Command() {
   const { pop, push } = useNavigation();
   const [setupComplete, setSetupComplete] = useState<boolean | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [language, setLanguage] = useState<Language>("ja");
+  
+  const t = getTranslation(language);
 
   useEffect(() => {
     const checkSetup = async () => {
+      // Load saved language preference
+      const savedLang = await LocalStorage.getItem<string>("preferred-language");
+      if (savedLang === "en" || savedLang === "ja") {
+        setLanguage(savedLang as Language);
+      }
+      
       const complete = isSetupComplete();
       setSetupComplete(complete);
       
@@ -44,10 +55,10 @@ export default function Command() {
       const decorated = decorateWithTimestamp(values.memo, !!prefs.prefixTimestamp);
       // 429対策: 1回だけ指数バックオフで再試行
       await withExponentialBackoff(() => sendTextMessage(token, decorated), { retries: 1, baseMs: 500 });
-      await showHUD("送信しました ✅");
+      await showHUD(t.sent);
       pop();
     } catch (e: any) {
-      await showHUD(`送信失敗：${e?.message ?? "unknown error"}`);
+      await showHUD(`${t.sendFailed}：${e?.message ?? t.unknownError}`);
       console.error(e);
     }
   }
@@ -56,10 +67,10 @@ export default function Command() {
   if (setupComplete === null) {
     return (
       <Detail
-        markdown="設定を確認中..."
+        markdown={t.checkingSettings}
         actions={
           <ActionPanel>
-            <Action title="キャンセル" onAction={pop} />
+            <Action title={t.cancel} onAction={pop} />
           </ActionPanel>
         }
       />
@@ -77,42 +88,42 @@ export default function Command() {
     
     return (
       <Detail
-        markdown={`# ⚙️ 初期設定が必要です
+        markdown={`# ⚙️ ${t.setupRequired}
 
 Lark Quick Memoを使用するには、初期設定を完了してください。
 
-## ❌ 未設定項目
+## ❌ ${t.missingFields}
 
 ${status.missingFields.map(field => `- **${field}**`).join('\n')}
 
-## 💡 設定方法
+## 💡 ${t.setupMethods}
 
-**選択肢1: ガイド付きセットアップ（推奨）**
-- 詳細な手順で安全にセットアップ
+**選択肢1: ${t.guidedSetup}（推奨）**
+- ${t.guidedSetupDesc}
 - Larkアプリ作成から動作テストまで完全サポート
-- 所要時間: 約10分
+- ${t.guidedSetupTime}
 
-**選択肢2: 手動設定**
+**選択肢2: ${t.manualSetup}**
 - Extension Preferencesで直接設定
-- 上級者向け
-- 所要時間: 約3分
+- ${t.manualSetupDesc}
+- ${t.manualSetupTime}
 
 ## 🚀 推奨事項
 
-初回利用の場合は「ガイド付きセットアップ」を選択してください。詳細な手順でスムーズに設定できます。`}
+${t.recommendation}`}
         actions={
           <ActionPanel>
             <Action 
-              title="ガイド付きセットアップを開始" 
+              title={t.guidedSetup} 
               onAction={() => setShowOnboarding(true)}
               icon="🚀"
             />
             <Action 
-              title="手動設定（Extension Preferences）" 
+              title={t.manualSetup} 
               onAction={() => openExtensionPreferences()}
               icon="⚙️"
             />
-            <Action title="後で設定する" onAction={pop} />
+            <Action title={t.setupLater} onAction={pop} />
           </ActionPanel>
         }
       />
@@ -124,12 +135,12 @@ ${status.missingFields.map(field => `- **${field}**`).join('\n')}
     <Form 
       actions={
         <ActionPanel>
-          <Action.SubmitForm title="送信" onSubmit={onSubmit} />
-          <Action title="設定を変更" onAction={() => openExtensionPreferences()} />
+          <Action.SubmitForm title={t.sendMemo} onSubmit={onSubmit} />
+          <Action title={t.changeSettings} onAction={() => openExtensionPreferences()} />
         </ActionPanel>
       }
     >
-      <Form.TextArea id="memo" title="メモ" placeholder="送る内容…" autoFocus />
+      <Form.TextArea id="memo" title={t.memoTitle} placeholder={t.memoPlaceholder} autoFocus />
     </Form>
   );
 }

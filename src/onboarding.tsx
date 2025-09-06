@@ -9,15 +9,19 @@ import {
   useNavigation,
   openExtensionPreferences,
   getPreferenceValues,
+  LocalStorage,
+  List,
 } from "@raycast/api";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { getTenantAccessToken, sendTextMessage } from "./lark";
 import { decorateWithTimestamp } from "./utils";
+import { Language, getTranslation } from "./locales/translations";
 
-type OnboardingStep = "welcome" | "lark-setup" | "basic-config" | "receiver-config" | "test-connection" | "complete";
+type OnboardingStep = "language" | "welcome" | "lark-setup" | "basic-config" | "receiver-config" | "test-connection" | "complete";
 
 interface OnboardingState {
   currentStep: OnboardingStep;
+  language: Language;
   hasLarkApp: boolean;
   domain: string;
   appId: string;
@@ -29,7 +33,8 @@ interface OnboardingState {
 export default function OnboardingWizard() {
   const { pop } = useNavigation();
   const [state, setState] = useState<OnboardingState>({
-    currentStep: "welcome",
+    currentStep: "language",
+    language: "ja",
     hasLarkApp: false,
     domain: "https://open.larksuite.com",
     appId: "",
@@ -37,9 +42,20 @@ export default function OnboardingWizard() {
     receiveId: "",
     receiveIdType: "email",
   });
+  
+  const t = getTranslation(state.language);
+  
+  useEffect(() => {
+    // Load saved language preference
+    LocalStorage.getItem<string>("preferred-language").then((lang) => {
+      if (lang === "en" || lang === "ja") {
+        setState(prev => ({ ...prev, language: lang as Language }));
+      }
+    });
+  }, []);
 
   const nextStep = () => {
-    const stepOrder: OnboardingStep[] = ["welcome", "lark-setup", "basic-config", "receiver-config", "test-connection", "complete"];
+    const stepOrder: OnboardingStep[] = ["language", "welcome", "lark-setup", "basic-config", "receiver-config", "test-connection", "complete"];
     const currentIndex = stepOrder.indexOf(state.currentStep);
     if (currentIndex < stepOrder.length - 1) {
       setState({ ...state, currentStep: stepOrder[currentIndex + 1] });
@@ -47,16 +63,21 @@ export default function OnboardingWizard() {
   };
 
   const prevStep = () => {
-    const stepOrder: OnboardingStep[] = ["welcome", "lark-setup", "basic-config", "receiver-config", "test-connection", "complete"];
+    const stepOrder: OnboardingStep[] = ["language", "welcome", "lark-setup", "basic-config", "receiver-config", "test-connection", "complete"];
     const currentIndex = stepOrder.indexOf(state.currentStep);
     if (currentIndex > 0) {
       setState({ ...state, currentStep: stepOrder[currentIndex - 1] });
     }
   };
+  
+  const selectLanguage = async (language: Language) => {
+    await LocalStorage.setItem("preferred-language", language);
+    setState({ ...state, language, currentStep: "welcome" });
+  };
 
   const testConnection = async () => {
     try {
-      showToast({ style: Toast.Style.Animated, title: "接続テスト中..." });
+      showToast({ style: Toast.Style.Animated, title: t.testing });
       
       // Temporarily set preferences for testing
       const testPrefs = {
@@ -73,7 +94,9 @@ export default function OnboardingWizard() {
       (global as any).getPreferenceValues = () => testPrefs;
 
       const token = await getTenantAccessToken();
-      const testMessage = "🎉 Lark Quick Memo セットアップ完了！\nおめでとうございます。正常に動作しています。";
+      const testMessage = state.language === "ja" 
+        ? "🎉 Lark Quick Memo セットアップ完了！\nおめでとうございます。正常に動作しています。"
+        : "🎉 Lark Quick Memo Setup Complete!\nCongratulations! Everything is working correctly.";
       const decoratedMessage = decorateWithTimestamp(testMessage, true);
       
       await sendTextMessage(token, decoratedMessage);
@@ -81,13 +104,13 @@ export default function OnboardingWizard() {
       // Restore original function
       (global as any).getPreferenceValues = originalGet;
       
-      showToast({ style: Toast.Style.Success, title: "接続成功！", message: "Larkにテストメッセージを送信しました。" });
+      showToast({ style: Toast.Style.Success, title: t.testSuccess, message: t.testSuccessMsg });
       nextStep();
     } catch (error: any) {
       showToast({ 
         style: Toast.Style.Failure, 
-        title: "接続失敗", 
-        message: error.message || "設定を確認してください。" 
+        title: t.testFailed, 
+        message: error.message || t.checkSettings 
       });
     }
   };
@@ -96,40 +119,72 @@ export default function OnboardingWizard() {
     try {
       // Open extension preferences to save settings
       await openExtensionPreferences();
-      showHUD("設定画面を開きました。設定を保存してください。");
+      showHUD(state.language === "ja" 
+        ? "設定画面を開きました。設定を保存してください。"
+        : "Settings opened. Please save your configuration.");
     } catch (error) {
       console.error("Failed to open preferences:", error);
     }
   };
 
+  if (state.currentStep === "language") {
+    return (
+      <List 
+        navigationTitle={t.selectLanguage}
+        searchBarPlaceholder={t.languagePrompt}
+      >
+        <List.Item
+          title={t.japanese}
+          subtitle="セットアップを日本語で進めます"
+          icon="🇯🇵"
+          actions={
+            <ActionPanel>
+              <Action title={t.japanese} onAction={() => selectLanguage("ja")} />
+            </ActionPanel>
+          }
+        />
+        <List.Item
+          title={t.english}
+          subtitle="Continue setup in English"
+          icon="🇺🇸"
+          actions={
+            <ActionPanel>
+              <Action title={t.english} onAction={() => selectLanguage("en")} />
+            </ActionPanel>
+          }
+        />
+      </List>
+    );
+  }
+
   if (state.currentStep === "welcome") {
     return (
       <Detail
-        markdown={`# 🚀 Lark Quick Memo へようこそ！
+        markdown={`# 🚀 ${t.welcomeTitle}
 
-RaycastからLark/Feishuへワンアクションでメモを送信できる拡張機能です。
+${t.welcomeDesc}
 
-## ✨ 主な機能
+## ✨ ${t.features}
 
-- **ワンアクション送信**: \`Cmd+Shift+M\` → テキスト入力 → \`Cmd+Enter\`
-- **タイムスタンプ自動付与**: メッセージに日時を自動追加
-- **Global/China対応**: どちらの環境でも利用可能
-- **セキュア**: 認証情報は安全に保管
+- **${t.featureQuick}**: ${t.featureQuickDesc}
+- **${t.featureTimestamp}**: ${t.featureTimestampDesc}
+- **${t.featureGlobal}**: ${t.featureGlobalDesc}
+- **${t.featureSecure}**: ${t.featureSecureDesc}
 
-## 🎯 セットアップの流れ
+## 🎯 ${t.setupFlow}
 
-1. **Larkアプリ作成**: 開発者コンソールでBot作成
-2. **基本設定**: App ID・Secretの設定
-3. **受信者設定**: メール送信先の設定
-4. **動作テスト**: 実際にテスト送信
+1. **${t.setupStep1}**: ${t.setupStep1Desc}
+2. **${t.setupStep2}**: ${t.setupStep2Desc}
+3. **${t.setupStep3}**: ${t.setupStep3Desc}
+4. **${t.setupStep4}**: ${t.setupStep4Desc}
 
-所要時間: 約10分
+${t.estimatedTime}
 
-準備はできましたか？`}
+${t.readyQuestion}`}
         actions={
           <ActionPanel>
-            <Action title="セットアップ開始" onAction={nextStep} />
-            <Action title="後で設定する" onAction={pop} />
+            <Action title={t.startSetup} onAction={nextStep} />
+            <Action title={t.setupLater} onAction={pop} />
           </ActionPanel>
         }
       />
@@ -139,51 +194,40 @@ RaycastからLark/Feishuへワンアクションでメモを送信できる拡�
   if (state.currentStep === "lark-setup") {
     return (
       <Detail
-        markdown={`# 📱 Larkアプリの作成
+        markdown={`# 📱 ${t.larkSetupTitle}
 
-まず、Lark/Feishuでカスタムアプリを作成する必要があります。
+${t.larkSetupIntro}
 
-## 🔗 開発者コンソールへアクセス
+## 🔗 ${t.devConsole}
 
-**Global版（推奨）:**
+**${t.globalVersion}:**
 - [https://open.larksuite.com/app](https://open.larksuite.com/app)
 
-**China版:**
+**${t.chinaVersion}:**
 - [https://open.feishu.cn/app](https://open.feishu.cn/app)
 
-## 📋 作成手順
+## 📋 ${t.createAppSteps}
 
-### 1. アプリ作成
-- **「Create App」** をクリック
-- **「Custom App」** を選択
-- **App Name**: \`Quick Memo\` （任意）
-- **Description**: \`Raycast extension for quick memos\`
+### 1. ${t.step1CreateApp}
+${t.step1Details.map(d => `- ${d}`).join('\n')}
 
-### 2. Bot機能を有効化
-- **「Add features and capabilities」** タブ
-- **「Bot」** を選択して有効化
+### 2. ${t.step2EnableBot}
+${t.step2Details.map(d => `- ${d}`).join('\n')}
 
-### 3. 権限設定
-- **「Permissions & Scopes」** タブ
-- 以下の権限を追加:
-  - ✅ \`im:message\` - Send messages as the app
-  - ✅ \`im:message:send_as_bot\` - Send messages as bot
+### 3. ${t.step3Permissions}
+${t.step3Details.map(d => `- ${d}`).join('\n')}
 
-### 4. アプリをリリース
-- **「Version Management & Release」** タブ
-- **「Create Version」** → **「Submit for Release」**
-- 社内リリース完了まで待機
+### 4. ${t.step4Release}
+${t.step4Details.map(d => `- ${d}`).join('\n')}
 
-### 5. 認証情報を取得
-- **「Credentials」** タブで以下をコピー:
-  - **App ID** (例: \`cli_a1b2c3d4e5f6g7h8\`)
-  - **App Secret** (例: \`abcdef123456...\`)
+### 5. ${t.step5GetCredentials}
+${t.step5Details.map(d => `- ${d}`).join('\n')}
 
-すべて完了しましたか？`}
+${t.allDoneQuestion}`}
         actions={
           <ActionPanel>
-            <Action title="完了しました" onAction={nextStep} />
-            <Action title="戻る" onAction={prevStep} />
+            <Action title={t.completed} onAction={nextStep} />
+            <Action title={t.back} onAction={prevStep} />
           </ActionPanel>
         }
       />
@@ -196,7 +240,7 @@ RaycastからLark/Feishuへワンアクションでメモを送信できる拡�
         actions={
           <ActionPanel>
             <Action.SubmitForm
-              title="次へ"
+              title={t.next}
               onSubmit={(values: any) => {
                 setState({
                   ...state,
@@ -207,17 +251,17 @@ RaycastからLark/Feishuへワンアクションでメモを送信できる拡�
                 nextStep();
               }}
             />
-            <Action title="戻る" onAction={prevStep} />
+            <Action title={t.back} onAction={prevStep} />
           </ActionPanel>
         }
       >
-        <Form.Description text="Larkアプリの基本設定を入力してください。" />
+        <Form.Description text={t.basicConfigDesc} />
         
         <Form.Dropdown
           id="domain"
-          title="Lark Domain"
+          title={t.larkDomain}
           defaultValue={state.domain}
-          info="あなたのLark/Feishu環境を選択してください"
+          info={t.selectEnv}
         >
           <Form.Dropdown.Item value="https://open.larksuite.com" title="Global (open.larksuite.com)" />
           <Form.Dropdown.Item value="https://open.feishu.cn" title="China (open.feishu.cn)" />
@@ -225,18 +269,18 @@ RaycastからLark/Feishuへワンアクションでメモを送信できる拡�
 
         <Form.PasswordField
           id="appId"
-          title="App ID"
-          placeholder="cli_xxxxxxxxxxxxxxxx"
+          title={t.appId}
+          placeholder={t.appIdPlaceholder}
           defaultValue={state.appId}
-          info="Lark開発者コンソールの「Credentials」タブからコピー"
+          info={t.appIdInfo}
         />
 
         <Form.PasswordField
           id="appSecret"
-          title="App Secret"
-          placeholder="xxxxxxxxxxxxxxxxxxxxxx"
+          title={t.appSecret}
+          placeholder={t.appSecretPlaceholder}
           defaultValue={state.appSecret}
-          info="Lark開発者コンソールの「Credentials」タブからコピー"
+          info={t.appSecretInfo}
         />
       </Form>
     );
@@ -248,7 +292,7 @@ RaycastからLark/Feishuへワンアクションでメモを送信できる拡�
         actions={
           <ActionPanel>
             <Action.SubmitForm
-              title="次へ"
+              title={t.next}
               onSubmit={(values: any) => {
                 setState({
                   ...state,
@@ -258,37 +302,37 @@ RaycastからLark/Feishuへワンアクションでメモを送信できる拡�
                 nextStep();
               }}
             />
-            <Action title="戻る" onAction={prevStep} />
+            <Action title={t.back} onAction={prevStep} />
           </ActionPanel>
         }
       >
-        <Form.Description text="メッセージの送信先を設定してください。" />
+        <Form.Description text={t.receiverConfigDesc} />
         
         <Form.Dropdown
           id="receiveIdType"
-          title="Receive ID Type"
+          title={t.receiveIdType}
           defaultValue={state.receiveIdType}
-          info="メールアドレス形式を推奨します"
+          info={t.receiveIdTypeInfo}
         >
-          <Form.Dropdown.Item value="email" title="Email（推奨）" />
-          <Form.Dropdown.Item value="open_id" title="Open ID（上級者向け）" />
+          <Form.Dropdown.Item value="email" title={t.emailRecommended} />
+          <Form.Dropdown.Item value="open_id" title={t.openIdAdvanced} />
         </Form.Dropdown>
 
         <Form.TextField
           id="receiveId"
-          title="Receive ID"
-          placeholder="your.email@company.com"
+          title={t.receiveId}
+          placeholder={t.receiveIdPlaceholder}
           defaultValue={state.receiveId}
           info={
             state.receiveIdType === "email" 
-              ? "あなたのLarkログインメールアドレスを正確に入力してください"
-              : "LarkプロフィールからOpen IDをコピーして入力してください"
+              ? t.receiveIdEmailInfo
+              : t.receiveIdOpenInfo
           }
         />
 
         <Form.Separator />
         
-        <Form.Description text="💡 ヒント: Larkアプリでプロフィール → アカウント設定から正確なメールアドレスを確認できます。" />
+        <Form.Description text={"💡 " + t.receiverHint} />
       </Form>
     );
   }
@@ -296,28 +340,28 @@ RaycastからLark/Feishuへワンアクションでメモを送信できる拡�
   if (state.currentStep === "test-connection") {
     return (
       <Detail
-        markdown={`# 🧪 接続テスト
+        markdown={`# 🧪 ${t.testConnectionTitle}
 
-設定した内容でLarkへの接続をテストします。
+${t.testConnectionIntro}
 
-## 📝 設定内容確認
+## 📝 ${t.configReview}
 
-- **Domain**: ${state.domain}
-- **App ID**: ${state.appId.substring(0, 8)}...
-- **Receive ID**: ${state.receiveId}
-- **Receive ID Type**: ${state.receiveIdType}
+- **${t.domain}**: ${state.domain}
+- **${t.appId}**: ${state.appId.substring(0, 8)}...
+- **${t.receiveId}**: ${state.receiveId}
+- **${t.receiveIdType}**: ${state.receiveIdType}
 
-## 🔄 テスト手順
+## 🔄 ${t.testSteps}
 
-1. **「接続テスト」**をクリック
-2. Larkにテストメッセージが送信されます
-3. 受信確認後、セットアップ完了
+1. ${t.testStep1}
+2. ${t.testStep2}
+3. ${t.testStep3}
 
-準備ができたらテストを開始してください。`}
+${t.readyToTest}`}
         actions={
           <ActionPanel>
-            <Action title="接続テスト" onAction={testConnection} />
-            <Action title="設定を修正" onAction={prevStep} />
+            <Action title={t.startTest} onAction={testConnection} />
+            <Action title={t.fixSettings} onAction={prevStep} />
           </ActionPanel>
         }
       />
@@ -327,30 +371,30 @@ RaycastからLark/Feishuへワンアクションでメモを送信できる拡�
   if (state.currentStep === "complete") {
     return (
       <Detail
-        markdown={`# 🎉 セットアップ完了！
+        markdown={`# 🎉 ${t.completeTitle}
 
-Lark Quick Memoの設定が正常に完了しました。
+${t.completeDesc}
 
-## ✅ 設定済み内容
+## ✅ ${t.completedItems}
 
-- ✅ Larkアプリ接続確認済み
-- ✅ メッセージ送信テスト成功
-- ✅ 全ての設定が正常動作
+- ✅ ${t.larkConnected}
+- ✅ ${t.messageTestSuccess}
+- ✅ ${t.allSettingsOk}
 
-## 🚀 使用方法
+## 🚀 ${t.usage}
 
-1. **\`Cmd + Shift + M\`** で拡張を起動
-2. **メモを入力**
-3. **\`Cmd + Enter\`** で送信
-4. **Larkで受信確認**
+1. ${t.usageStep1}
+2. ${t.usageStep2}
+3. ${t.usageStep3}
+4. ${t.usageStep4}
 
-## ⚙️ 設定の保存
+## ⚙️ ${t.saveSettings}
 
-最後に、Extension Preferencesで設定を保存してください。`}
+${t.saveSettingsDesc}`}
         actions={
           <ActionPanel>
-            <Action title="設定を保存" onAction={completeSetup} />
-            <Action title="完了" onAction={pop} />
+            <Action title={t.saveSettingsBtn} onAction={completeSetup} />
+            <Action title={t.complete} onAction={pop} />
           </ActionPanel>
         }
       />
