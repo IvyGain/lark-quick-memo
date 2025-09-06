@@ -17,7 +17,12 @@
     "noImplicitThis": false,
     "noImplicitReturns": false,
     "noEmitOnError": false,
-    "suppressImplicitAnyIndexErrors": true
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "exactOptionalPropertyTypes": false,
+    "noImplicitOverride": false,
+    "allowUnreachableCode": true,
+    "allowUnusedLabels": true
   },
   "include": [
     "src/**/*"
