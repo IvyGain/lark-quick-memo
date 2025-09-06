@@ -152,8 +152,8 @@ export const translations = {
     usageStep3: 'Cmd + Enter で送信',
     usageStep4: 'Larkで受信確認',
     saveSettings: '設定の保存',
-    saveSettingsDesc: '最後に、Extension Preferencesで設定を保存してください。',
-    saveSettingsBtn: '設定を保存',
+    saveSettingsDesc: '設定が自動的に保存されました。',
+    saveSettingsBtn: '完了',
     
     // Main UI
     sendMemo: '送信',
@@ -318,9 +318,9 @@ export const translations = {
     usageStep2: 'Type your memo',
     usageStep3: 'Press Cmd + Enter to send',
     usageStep4: 'Check receipt in Lark',
-    saveSettings: 'Save Settings',
-    saveSettingsDesc: 'Finally, save your settings in Extension Preferences.',
-    saveSettingsBtn: 'Save Settings',
+    saveSettings: 'Settings Saved',
+    saveSettingsDesc: 'Settings have been saved automatically.',
+    saveSettingsBtn: 'Complete',
     
     // Main UI
     sendMemo: 'Send',

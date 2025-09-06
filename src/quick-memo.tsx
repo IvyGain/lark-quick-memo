@@ -3,6 +3,8 @@ import {
   ActionPanel, 
   Form, 
   showHUD, 
+  showToast,
+  Toast,
   getPreferenceValues, 
   useNavigation,
   Detail,
@@ -13,8 +15,10 @@ import { useState, useEffect } from "react";
 import { decorateWithTimestamp, withExponentialBackoff } from "./utils";
 import { getTenantAccessToken, sendTextMessage } from "./lark";
 import { isSetupComplete, getSetupStatus } from "./utils/setup-checker";
+import { getEffectivePreferences, isEffectiveSetupComplete } from "./utils/preferences";
 import OnboardingWizard from "./onboarding";
 import { Language, getTranslation } from "./locales/translations";
+import { clearAllStoredData, showCurrentSettings } from "./utils/test-helpers";
 
 type Prefs = {
   prefixTimestamp?: boolean;
@@ -36,7 +40,8 @@ export default function Command() {
         setLanguage(savedLang as Language);
       }
       
-      const complete = isSetupComplete();
+      // Check both Extension Preferences and LocalStorage
+      const complete = await isEffectiveSetupComplete();
       setSetupComplete(complete);
       
       if (!complete) {
@@ -50,11 +55,21 @@ export default function Command() {
 
   async function onSubmit(values: { memo: string }) {
     try {
+      // 新しいpreferencesシステムを使用
+      const prefs = await getEffectivePreferences();
+      
+      // Mock getPreferenceValues for lark.ts compatibility
+      const originalGet = getPreferenceValues;
+      (global as any).getPreferenceValues = () => prefs;
+      
       const token = await getTenantAccessToken();
-      const prefs = getPreferenceValues<Prefs>();
       const decorated = decorateWithTimestamp(values.memo, !!prefs.prefixTimestamp);
       // 429対策: 1回だけ指数バックオフで再試行
       await withExponentialBackoff(() => sendTextMessage(token, decorated), { retries: 1, baseMs: 500 });
+      
+      // Restore original function
+      (global as any).getPreferenceValues = originalGet;
+      
       await showHUD(t.sent);
       pop();
     } catch (e: any) {
@@ -71,6 +86,18 @@ export default function Command() {
         actions={
           <ActionPanel>
             <Action title={t.cancel} onAction={pop} />
+            <Action 
+              title="🧪 テスト: データクリア" 
+              onAction={async () => {
+                await clearAllStoredData();
+                // 強制的に再読み込み
+                window.location.reload();
+              }}
+            />
+            <Action 
+              title="📊 設定確認" 
+              onAction={showCurrentSettings}
+            />
           </ActionPanel>
         }
       />
@@ -124,6 +151,19 @@ ${t.recommendation}`}
               icon="⚙️"
             />
             <Action title={t.setupLater} onAction={pop} />
+            <Action 
+              title="🧪 テスト: データクリア" 
+              onAction={async () => {
+                await clearAllStoredData();
+                // 強制的に再読み込み
+                setSetupComplete(null);
+                setShowOnboarding(false);
+                setLanguage("ja");
+                // 設定確認を再実行
+                const complete = isSetupComplete();
+                setSetupComplete(complete);
+              }}
+            />
           </ActionPanel>
         }
       />

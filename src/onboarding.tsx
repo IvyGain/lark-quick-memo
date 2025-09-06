@@ -117,15 +117,53 @@ export default function OnboardingWizard() {
 
   const completeSetup = async () => {
     try {
-      // Open extension preferences to save settings
-      await openExtensionPreferences();
-      showHUD(state.language === "ja" 
-        ? "設定画面を開きました。設定を保存してください。"
-        : "Settings opened. Please save your configuration.");
+      // Save settings to LocalStorage for immediate access
+      await LocalStorage.setItem("larkDomain", state.domain);
+      await LocalStorage.setItem("appId", state.appId);
+      await LocalStorage.setItem("appSecret", state.appSecret);
+      await LocalStorage.setItem("receiveIdType", state.receiveIdType);
+      await LocalStorage.setItem("receiveId", state.receiveId);
+      await LocalStorage.setItem("prefixTimestamp", "true");
+      
+      // Also try to update command metadata if possible
+      try {
+        await updateCommandMetadata({
+          subtitle: state.language === "ja" ? "設定完了" : "Setup Complete"
+        });
+      } catch (metaError) {
+        console.log("Metadata update not available:", metaError);
+      }
+      
+      showToast({
+        style: Toast.Style.Success,
+        title: state.language === "ja" ? "設定を保存しました" : "Settings saved successfully",
+        message: state.language === "ja" 
+          ? "すぐに使用開始できます！"
+          : "Ready to use immediately!"
+      });
+      
+      // Navigate to the main interface
+      setTimeout(() => {
+        pop();
+      }, 2000);
+      
     } catch (error) {
-      console.error("Failed to open preferences:", error);
+      console.error("Failed to save settings:", error);
+      showToast({
+        style: Toast.Style.Failure,
+        title: "Error",
+        message: "Failed to save settings. Please use Extension Preferences."
+      });
+      
+      // Fallback to opening preferences
+      try {
+        await openExtensionPreferences();
+      } catch (prefError) {
+        console.error("Failed to open preferences:", prefError);
+      }
     }
   };
+  
 
   if (state.currentStep === "language") {
     return (
@@ -390,7 +428,7 @@ ${t.completeDesc}
 
 ## ⚙️ ${t.saveSettings}
 
-${t.saveSettingsDesc}`}
+設定が自動的に保存されました。すぐに使用できます！`}
         actions={
           <ActionPanel>
             <Action title={t.saveSettingsBtn} onAction={completeSetup} />

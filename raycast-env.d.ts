@@ -11,13 +11,13 @@ type ExtensionPreferences = {
   /** Lark Domain - Choose your Lark/Feishu environment */
   "larkDomain": "https://open.larksuite.com" | "https://open.feishu.cn",
   /** App ID - Your Lark app ID from developer console */
-  "appId": string,
+  "appId"?: string,
   /** App Secret - Your Lark app secret from developer console */
-  "appSecret": string,
+  "appSecret"?: string,
   /** Receive ID Type - Type of recipient identifier */
   "receiveIdType": "email" | "open_id",
   /** Receive ID - Your Lark login email or open_id */
-  "receiveId": string,
+  "receiveId"?: string,
   /** Prefix Timestamp - Add timestamp prefix to messages */
   "prefixTimestamp": boolean
 }

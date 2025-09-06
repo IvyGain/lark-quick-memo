@@ -22,7 +22,7 @@
     {
       "name": "larkDomain",
       "type": "dropdown",
-      "required": true,
+      "required": false,
       "title": "Lark Domain",
       "description": "Choose your Lark/Feishu environment",
       "default": "https://open.larksuite.com",
@@ -40,21 +40,21 @@
     {
       "name": "appId",
       "type": "password",
-      "required": true,
+      "required": false,
       "title": "App ID",
       "description": "Your Lark app ID from developer console"
     },
     {
       "name": "appSecret",
       "type": "password",
-      "required": true,
+      "required": false,
       "title": "App Secret",
       "description": "Your Lark app secret from developer console"
     },
     {
       "name": "receiveIdType",
       "type": "dropdown",
-      "required": true,
+      "required": false,
       "title": "Receive ID Type",
       "description": "Type of recipient identifier",
       "default": "email",
@@ -72,7 +72,7 @@
     {
       "name": "receiveId",
       "type": "textfield",
-      "required": true,
+      "required": false,
       "title": "Receive ID",
       "description": "Your Lark login email or open_id"
     },
