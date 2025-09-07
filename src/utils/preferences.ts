@@ -35,16 +35,25 @@ export async function getEffectivePreferences(): Promise<Prefs> {
       LocalStorage.getItem<string>("prefixTimestamp")
     ]);
     
-    // LocalStorageの値がある場合は優先、なければExtension Preferencesを使用
+    // Extension Preferencesが設定されている場合は優先、なければLocalStorageから読み込み
     const effectivePrefs: Prefs = {
-      larkDomain: larkDomain || extensionPrefs.larkDomain || "https://open.larksuite.com",
-      appId: appId || extensionPrefs.appId,
-      appSecret: appSecret || extensionPrefs.appSecret,
-      receiveIdType: (receiveIdType as "email" | "open_id") || extensionPrefs.receiveIdType || "email",
-      receiveId: receiveId || extensionPrefs.receiveId,
-      prefixTimestamp: prefixTimestamp === "true" || extensionPrefs.prefixTimestamp === true
+      larkDomain: extensionPrefs.larkDomain || larkDomain || "https://open.larksuite.com",
+      appId: extensionPrefs.appId || appId,
+      appSecret: extensionPrefs.appSecret || appSecret,
+      receiveIdType: extensionPrefs.receiveIdType || (receiveIdType as "email" | "open_id") || "email",
+      receiveId: extensionPrefs.receiveId || receiveId,
+      prefixTimestamp: extensionPrefs.prefixTimestamp !== undefined && extensionPrefs.prefixTimestamp !== null
+        ? extensionPrefs.prefixTimestamp === true
+        : (prefixTimestamp === "true")
     };
     
+    console.log("📊 LocalStorage values:", {
+      prefixTimestamp,
+      prefixTimestampType: typeof prefixTimestamp
+    });
+    console.log("📊 Extension preferences:", {
+      prefixTimestamp: extensionPrefs.prefixTimestamp
+    });
     console.log("📊 Effective preferences:", {
       ...effectivePrefs,
       appSecret: effectivePrefs.appSecret ? "***" : undefined

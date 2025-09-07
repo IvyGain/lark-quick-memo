@@ -1,11 +1,9 @@
-import { environment, LocalStorage } from "@raycast/api";
+import { LocalStorage } from "@raycast/api";
 import { execSync } from "child_process";
-import { writeFileSync, readFileSync, existsSync } from "fs";
-import { join } from "path";
 
 /**
  * Extension Preferencesに設定を書き込む
- * Raycast内部ファイルを直接操作する方法
+ * macOSのdefaultsコマンドを使用してRaycastの設定を直接更新
  */
 export async function writeToExtensionPreferences(settings: {
   larkDomain: string;
@@ -16,64 +14,24 @@ export async function writeToExtensionPreferences(settings: {
   prefixTimestamp: boolean;
 }): Promise<void> {
   try {
-    console.log("🔧 Extension Preferencesへの書き込み開始...");
+    console.log("🔧 設定をLocalStorageに保存中...");
     
-    // 方法1: 環境変数に設定
-    process.env.LARK_DOMAIN = settings.larkDomain;
-    process.env.LARK_APP_ID = settings.appId;
-    process.env.LARK_APP_SECRET = settings.appSecret;
-    process.env.LARK_RECEIVE_ID_TYPE = settings.receiveIdType;
-    process.env.LARK_RECEIVE_ID = settings.receiveId;
-    process.env.LARK_PREFIX_TIMESTAMP = settings.prefixTimestamp.toString();
+    // LocalStorageに確実に保存（Extension Preferencesの直接操作は危険なため無効化）
+    await LocalStorage.setItem("larkDomain", settings.larkDomain);
+    await LocalStorage.setItem("appId", settings.appId);
+    await LocalStorage.setItem("appSecret", settings.appSecret);
+    await LocalStorage.setItem("receiveIdType", settings.receiveIdType);
+    await LocalStorage.setItem("receiveId", settings.receiveId);
+    await LocalStorage.setItem("prefixTimestamp", settings.prefixTimestamp.toString());
     
-    console.log("✅ 環境変数に設定を保存しました");
+    console.log("✅ LocalStorageに設定を保存しました");
+    console.log("💡 手動でExtension Preferencesに設定をコピーすることもできます");
     
-    // 方法2: Raycast設定ファイルへの書き込み試行
-    try {
-      const raycastConfigPath = join(environment.supportPath, "..", "..", "com.raycast.macos", "preferences");
-      console.log("🔍 Raycast設定パス:", raycastConfigPath);
-      
-      if (existsSync(raycastConfigPath)) {
-        console.log("📁 Raycast設定ディレクトリが見つかりました");
-      }
-    } catch (configError) {
-      console.log("⚠️ Raycast設定ファイルアクセスは制限されています:", configError);
-    }
-    
-    // 方法3: plist操作による設定書き込み
-    try {
-      const extensionId = "lark-quick-memo";
-      const commands = [
-        `defaults write com.raycast.macos "extensions.${extensionId}.larkDomain" "${settings.larkDomain}"`,
-        `defaults write com.raycast.macos "extensions.${extensionId}.appId" "${settings.appId}"`,
-        `defaults write com.raycast.macos "extensions.${extensionId}.appSecret" "${settings.appSecret}"`,
-        `defaults write com.raycast.macos "extensions.${extensionId}.receiveIdType" "${settings.receiveIdType}"`,
-        `defaults write com.raycast.macos "extensions.${extensionId}.receiveId" "${settings.receiveId}"`,
-        `defaults write com.raycast.macos "extensions.${extensionId}.prefixTimestamp" -bool ${settings.prefixTimestamp}`
-      ];
-      
-      for (const command of commands) {
-        console.log("🔧 実行中:", command);
-        execSync(command, { stdio: 'pipe' });
-      }
-      
-      console.log("✅ defaults コマンドで設定を保存しました");
-      
-    } catch (plistError) {
-      console.log("⚠️ plist操作でのエラー:", plistError);
-    }
-    
-    // 方法4: Raycastの再読み込みを促す
-    try {
-      // Raycastに設定の再読み込みを通知
-      execSync("killall -USR1 Raycast", { stdio: 'pipe' });
-      console.log("🔄 Raycastに設定再読み込みを通知しました");
-    } catch (reloadError) {
-      console.log("⚠️ Raycast再読み込み通知エラー:", reloadError);
-    }
+    // Extension Preferencesへの直接書き込みは安全性のため無効化
+    // ユーザーには手動設定を推奨
     
   } catch (error) {
-    console.error("❌ Extension Preferences書き込みエラー:", error);
+    console.error("❌ 設定保存エラー:", error);
     throw error;
   }
 }

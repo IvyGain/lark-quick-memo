@@ -17,6 +17,7 @@ import { getTenantAccessToken, sendTextMessage } from "./lark";
 import { decorateWithTimestamp } from "./utils";
 import { Language, getTranslation } from "./locales/translations";
 import { writeToExtensionPreferences } from "./utils/preferences-writer";
+import { suggestSettingsToPreferences } from "./utils/settings-sync";
 
 type OnboardingStep = "language" | "welcome" | "lark-setup" | "basic-config" | "receiver-config" | "test-connection" | "complete";
 
@@ -121,15 +122,15 @@ export default function OnboardingWizard() {
         
         showToast({
           style: Toast.Style.Success,
-          title: "✅ Extension Preferencesに保存完了",
-          message: "設定が正常に保存されました"
+          title: "✅ 設定保存完了",
+          message: "LocalStorageに設定が保存されました"
         });
       } catch (prefError) {
         console.log("⚠️ Extension Preferences保存エラー:", prefError);
         showToast({
           style: Toast.Style.Failure,
-          title: "⚠️ Extension Preferences保存失敗",
-          message: "LocalStorageには保存されました"
+          title: "⚠️ 設定保存でエラーが発生",
+          message: "基本設定はLocalStorageに保存されました"
         });
       }
       
@@ -485,51 +486,47 @@ ${t.completeDesc}
           <ActionPanel>
             <Action title={t.complete} onAction={completeSetup} />
             <Action 
-              title="🔄 Extension Preferencesに再保存" 
+              title="📋 Extension Preferences用設定をコピー" 
               onAction={async () => {
-                try {
-                  await writeToExtensionPreferences({
-                    larkDomain: state.domain,
-                    appId: state.appId,
-                    appSecret: state.appSecret,
-                    receiveIdType: state.receiveIdType,
-                    receiveId: state.receiveId,
-                    prefixTimestamp: false
-                  });
-                  showToast({
-                    style: Toast.Style.Success,
-                    title: "✅ Extension Preferences保存成功",
-                    message: "設定が正常に保存されました"
-                  });
-                } catch (error) {
-                  showToast({
-                    style: Toast.Style.Failure,
-                    title: "❌ Extension Preferences保存失敗",
-                    message: "手動でPreferencesを設定してください"
-                  });
+                const settingsText = await suggestSettingsToPreferences();
+                await Clipboard.copy(settingsText);
+                showToast({
+                  style: Toast.Style.Success,
+                  title: "📋 設定値をクリップボードにコピー",
+                  message: "Extension Preferencesで手動設定してください"
+                });
+                
+                // 3秒後にExtension Preferencesを開く
+                setTimeout(async () => {
                   await openExtensionPreferences();
-                }
+                }, 3000);
+              }}
+            />
+            <Action 
+              title="⚙️ Extension Preferencesを開く" 
+              onAction={async () => {
+                await openExtensionPreferences();
               }}
             />
             <Action 
               title="🔑 App IDをコピー" 
               onAction={async () => {
                 await Clipboard.copy(state.appId);
-                showToast({ style: Toast.Style.Success, title: "App IDをコピー", message: state.appId.substring(0, 12) + "..." });
+                showToast({ style: Toast.Style.Success, title: "📋 App IDをコピー", message: "Extension PreferencesのApp IDフィールドにペースト" });
               }}
             />
             <Action 
               title="🔒 App Secretをコピー" 
               onAction={async () => {
                 await Clipboard.copy(state.appSecret);
-                showToast({ style: Toast.Style.Success, title: "App Secretをコピー", message: state.appSecret.substring(0, 12) + "..." });
+                showToast({ style: Toast.Style.Success, title: "📋 App Secretをコピー", message: "Extension PreferencesのApp Secretフィールドにペースト" });
               }}
             />
             <Action 
               title="📧 Receive IDをコピー" 
               onAction={async () => {
                 await Clipboard.copy(state.receiveId);
-                showToast({ style: Toast.Style.Success, title: "Receive IDをコピー", message: state.receiveId });
+                showToast({ style: Toast.Style.Success, title: "📋 Receive IDをコピー", message: "Extension PreferencesのReceive IDフィールドにペースト" });
               }}
             />
           </ActionPanel>

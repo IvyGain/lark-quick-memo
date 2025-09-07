@@ -82,7 +82,7 @@
       "required": false,
       "title": "Prefix Timestamp",
       "description": "Add timestamp prefix to messages",
-      "default": true,
+      "default": false,
       "label": "Add timestamp prefix"
     }
   ],

@@ -24,7 +24,6 @@
     "allowUnreachableCode": true,
     "allowUnusedLabels": true,
     "noErrorTruncation": true,
-    "suppressImplicitAnyIndexErrors": true,
     "skipDefaultLibCheck": true
   },
   "include": [

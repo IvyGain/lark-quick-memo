@@ -19,6 +19,7 @@ import { getEffectivePreferences, isEffectiveSetupComplete } from "./utils/prefe
 import OnboardingWizard from "./onboarding";
 import { Language, getTranslation } from "./locales/translations";
 import { clearAllStoredData, showCurrentSettings } from "./utils/test-helpers";
+import { suggestSettingsToPreferences, syncPreferencesToLocalStorage, checkSettingsStatus } from "./utils/settings-sync";
 
 type Prefs = {
   prefixTimestamp?: boolean;
@@ -61,8 +62,10 @@ export default function Command() {
       // 引数で設定を渡してAPI呼び出し
       const token = await getTenantAccessToken(prefs);
       
-      // タイムスタンプはユーザー設定に従う（デフォルトはfalse）
-      const message = prefs.prefixTimestamp ? decorateWithTimestamp(values.memo, true) : values.memo;
+      // タイムスタンプは明示的にfalseに設定（ユーザーの要望により無効化）
+      console.log("🕐 タイムスタンプ設定:", prefs.prefixTimestamp, "→ 強制的にfalse");
+      const message = values.memo; // タイムスタンプを付けない
+      console.log("📝 送信メッセージ:", message);
       
       // 429対策: 1回だけ指数バックオフで再試行
       await withExponentialBackoff(() => sendTextMessage(token, message, prefs), { retries: 1, baseMs: 500 });
@@ -174,6 +177,38 @@ ${t.recommendation}`}
         <ActionPanel>
           <Action.SubmitForm title={t.sendMemo} onSubmit={onSubmit} />
           <Action title={t.changeSettings} onAction={() => openExtensionPreferences()} />
+          <Action 
+            title="🔄 Extension Preferencesに設定をコピー" 
+            onAction={async () => {
+              const settingsText = await suggestSettingsToPreferences();
+              await Clipboard.copy(settingsText);
+              showToast({
+                style: Toast.Style.Success,
+                title: "📋 設定をクリップボードにコピー",
+                message: "Extension Preferencesで設定してください"
+              });
+              setTimeout(() => openExtensionPreferences(), 2000);
+            }}
+          />
+          <Action 
+            title="⬇️ Extension Preferencesから設定を取得" 
+            onAction={async () => {
+              const synced = await syncPreferencesToLocalStorage();
+              if (synced) {
+                showToast({
+                  style: Toast.Style.Success,
+                  title: "✅ 設定を同期しました",
+                  message: "Extension Preferencesの設定を取得しました"
+                });
+              } else {
+                showToast({
+                  style: Toast.Style.Failure,
+                  title: "⚠️ 同期できませんでした",
+                  message: "Extension Preferencesに設定がありません"
+                });
+              }
+            }}
+          />
         </ActionPanel>
       }
     >
