@@ -6,8 +6,8 @@
     "moduleResolution": "node",
     "strict": false,
     "jsx": "react-jsx",
-    "declaration": true,
-    "declarationMap": true,
+    "declaration": false,
+    "declarationMap": false,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": false,
     "resolveJsonModule": true,
@@ -22,12 +22,20 @@
     "exactOptionalPropertyTypes": false,
     "noImplicitOverride": false,
     "allowUnreachableCode": true,
-    "allowUnusedLabels": true
+    "allowUnusedLabels": true,
+    "noErrorTruncation": true,
+    "suppressImplicitAnyIndexErrors": true,
+    "skipDefaultLibCheck": true
   },
   "include": [
     "src/**/*"
   ],
   "exclude": [
     "dist/**/*"
-  ]
+  ],
+  "ts-node": {
+    "compilerOptions": {
+      "skipLibCheck": true
+    }
+  }
 }

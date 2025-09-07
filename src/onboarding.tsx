@@ -3,19 +3,20 @@ import {
   ActionPanel,
   Detail,
   Form,
-  showHUD,
   showToast,
   Toast,
   useNavigation,
-  openExtensionPreferences,
   getPreferenceValues,
   LocalStorage,
   List,
+  Clipboard,
+  openExtensionPreferences,
 } from "@raycast/api";
 import { useState, useEffect } from "react";
 import { getTenantAccessToken, sendTextMessage } from "./lark";
 import { decorateWithTimestamp } from "./utils";
 import { Language, getTranslation } from "./locales/translations";
+import { writeToExtensionPreferences } from "./utils/preferences-writer";
 
 type OnboardingStep = "language" | "welcome" | "lark-setup" | "basic-config" | "receiver-config" | "test-connection" | "complete";
 
@@ -79,30 +80,58 @@ export default function OnboardingWizard() {
     try {
       showToast({ style: Toast.Style.Animated, title: t.testing });
       
-      // Temporarily set preferences for testing
+      // 1. Stateの値でテスト実行
       const testPrefs = {
         larkDomain: state.domain,
         appId: state.appId,
         appSecret: state.appSecret,
         receiveIdType: state.receiveIdType,
         receiveId: state.receiveId,
-        prefixTimestamp: true,
+        prefixTimestamp: false,
       };
 
-      // Mock getPreferenceValues for testing
-      const originalGet = getPreferenceValues;
-      (global as any).getPreferenceValues = () => testPrefs;
-
-      const token = await getTenantAccessToken();
+      // 設定を引数として渡してテスト実行
+      const token = await getTenantAccessToken(testPrefs);
       const testMessage = state.language === "ja" 
         ? "🎉 Lark Quick Memo セットアップ完了！\nおめでとうございます。正常に動作しています。"
         : "🎉 Lark Quick Memo Setup Complete!\nCongratulations! Everything is working correctly.";
-      const decoratedMessage = decorateWithTimestamp(testMessage, true);
+      // タイムスタンプなしで送信
+      const decoratedMessage = testMessage;
       
-      await sendTextMessage(token, decoratedMessage);
+      await sendTextMessage(token, decoratedMessage, testPrefs);
       
-      // Restore original function
-      (global as any).getPreferenceValues = originalGet;
+      // 2. テスト成功 → LocalStorageに保存
+      await LocalStorage.setItem("larkDomain", state.domain);
+      await LocalStorage.setItem("appId", state.appId);
+      await LocalStorage.setItem("appSecret", state.appSecret);
+      await LocalStorage.setItem("receiveIdType", state.receiveIdType);
+      await LocalStorage.setItem("receiveId", state.receiveId);
+      await LocalStorage.setItem("prefixTimestamp", "false");
+      
+      // 3. Extension Preferencesに保存を試行
+      try {
+        await writeToExtensionPreferences({
+          larkDomain: state.domain,
+          appId: state.appId,
+          appSecret: state.appSecret,
+          receiveIdType: state.receiveIdType,
+          receiveId: state.receiveId,
+          prefixTimestamp: false
+        });
+        
+        showToast({
+          style: Toast.Style.Success,
+          title: "✅ Extension Preferencesに保存完了",
+          message: "設定が正常に保存されました"
+        });
+      } catch (prefError) {
+        console.log("⚠️ Extension Preferences保存エラー:", prefError);
+        showToast({
+          style: Toast.Style.Failure,
+          title: "⚠️ Extension Preferences保存失敗",
+          message: "LocalStorageには保存されました"
+        });
+      }
       
       showToast({ style: Toast.Style.Success, title: t.testSuccess, message: t.testSuccessMsg });
       nextStep();
@@ -116,52 +145,19 @@ export default function OnboardingWizard() {
   };
 
   const completeSetup = async () => {
-    try {
-      // Save settings to LocalStorage for immediate access
-      await LocalStorage.setItem("larkDomain", state.domain);
-      await LocalStorage.setItem("appId", state.appId);
-      await LocalStorage.setItem("appSecret", state.appSecret);
-      await LocalStorage.setItem("receiveIdType", state.receiveIdType);
-      await LocalStorage.setItem("receiveId", state.receiveId);
-      await LocalStorage.setItem("prefixTimestamp", "true");
-      
-      // Also try to update command metadata if possible
-      try {
-        await updateCommandMetadata({
-          subtitle: state.language === "ja" ? "設定完了" : "Setup Complete"
-        });
-      } catch (metaError) {
-        console.log("Metadata update not available:", metaError);
-      }
-      
-      showToast({
-        style: Toast.Style.Success,
-        title: state.language === "ja" ? "設定を保存しました" : "Settings saved successfully",
-        message: state.language === "ja" 
-          ? "すぐに使用開始できます！"
-          : "Ready to use immediately!"
-      });
-      
-      // Navigate to the main interface
-      setTimeout(() => {
-        pop();
-      }, 2000);
-      
-    } catch (error) {
-      console.error("Failed to save settings:", error);
-      showToast({
-        style: Toast.Style.Failure,
-        title: "Error",
-        message: "Failed to save settings. Please use Extension Preferences."
-      });
-      
-      // Fallback to opening preferences
-      try {
-        await openExtensionPreferences();
-      } catch (prefError) {
-        console.error("Failed to open preferences:", prefError);
-      }
-    }
+    // 設定は既にtestConnectionで保存済み
+    showToast({
+      style: Toast.Style.Success,
+      title: state.language === "ja" ? "設定完了" : "Setup Complete",
+      message: state.language === "ja" 
+        ? "すぐに使用できます！"
+        : "Ready to use immediately!"
+    });
+    
+    // メイン画面に戻る
+    setTimeout(() => {
+      pop();
+    }, 1000);
   };
   
 
@@ -280,12 +276,18 @@ ${t.allDoneQuestion}`}
             <Action.SubmitForm
               title={t.next}
               onSubmit={(values: any) => {
-                setState({
+                console.log('📝 Basic Config Form Values:', values);
+                console.log('📝 Current State Before Update:', state);
+                
+                const newState = {
                   ...state,
                   domain: values.domain,
                   appId: values.appId,
                   appSecret: values.appSecret,
-                });
+                };
+                
+                console.log('📝 New State After Update:', newState);
+                setState(newState);
                 nextStep();
               }}
             />
@@ -298,7 +300,8 @@ ${t.allDoneQuestion}`}
         <Form.Dropdown
           id="domain"
           title={t.larkDomain}
-          defaultValue={state.domain}
+          value={state.domain}
+          onChange={(newValue) => setState({...state, domain: newValue})}
           info={t.selectEnv}
         >
           <Form.Dropdown.Item value="https://open.larksuite.com" title="Global (open.larksuite.com)" />
@@ -309,7 +312,8 @@ ${t.allDoneQuestion}`}
           id="appId"
           title={t.appId}
           placeholder={t.appIdPlaceholder}
-          defaultValue={state.appId}
+          value={state.appId}
+          onChange={(newValue) => setState({...state, appId: newValue})}
           info={t.appIdInfo}
         />
 
@@ -317,7 +321,8 @@ ${t.allDoneQuestion}`}
           id="appSecret"
           title={t.appSecret}
           placeholder={t.appSecretPlaceholder}
-          defaultValue={state.appSecret}
+          value={state.appSecret}
+          onChange={(newValue) => setState({...state, appSecret: newValue})}
           info={t.appSecretInfo}
         />
       </Form>
@@ -332,11 +337,17 @@ ${t.allDoneQuestion}`}
             <Action.SubmitForm
               title={t.next}
               onSubmit={(values: any) => {
-                setState({
+                console.log('📧 Receiver Config Form Values:', values);
+                console.log('📧 Current State Before Update:', state);
+                
+                const newState = {
                   ...state,
                   receiveIdType: values.receiveIdType,
                   receiveId: values.receiveId,
-                });
+                };
+                
+                console.log('📧 New State After Update:', newState);
+                setState(newState);
                 nextStep();
               }}
             />
@@ -349,7 +360,8 @@ ${t.allDoneQuestion}`}
         <Form.Dropdown
           id="receiveIdType"
           title={t.receiveIdType}
-          defaultValue={state.receiveIdType}
+          value={state.receiveIdType}
+          onChange={(newValue) => setState({...state, receiveIdType: newValue as "email" | "open_id"})}
           info={t.receiveIdTypeInfo}
         >
           <Form.Dropdown.Item value="email" title={t.emailRecommended} />
@@ -360,7 +372,8 @@ ${t.allDoneQuestion}`}
           id="receiveId"
           title={t.receiveId}
           placeholder={t.receiveIdPlaceholder}
-          defaultValue={state.receiveId}
+          value={state.receiveId}
+          onChange={(newValue) => setState({...state, receiveId: newValue})}
           info={
             state.receiveIdType === "email" 
               ? t.receiveIdEmailInfo
@@ -385,8 +398,8 @@ ${t.testConnectionIntro}
 ## 📝 ${t.configReview}
 
 - **${t.domain}**: ${state.domain}
-- **${t.appId}**: ${state.appId.substring(0, 8)}...
-- **${t.receiveId}**: ${state.receiveId}
+- **${t.appId}**: ${state.appId ? state.appId.substring(0, 8) + '...' : '未設定'}
+- **${t.receiveId}**: ${state.receiveId || '未設定'}
 - **${t.receiveIdType}**: ${state.receiveIdType}
 
 ## 🔄 ${t.testSteps}
@@ -395,11 +408,41 @@ ${t.testConnectionIntro}
 2. ${t.testStep2}
 3. ${t.testStep3}
 
-${t.readyToTest}`}
+${t.readyToTest}
+
+---
+
+**🧪 デバッグ情報:**
+- App ID: ${state.appId ? '設定済み' : '空欠'}
+- App Secret: ${state.appSecret ? '設定済み' : '空欠'}
+- Receive ID: ${state.receiveId ? '設定済み' : '空欠'}`}
         actions={
           <ActionPanel>
-            <Action title={t.startTest} onAction={testConnection} />
+            <Action 
+              title={t.startTest} 
+              onAction={() => {
+                console.log('🧪 接続テスト開始 - 現在のstate:', {
+                  domain: state.domain,
+                  appId: state.appId ? state.appId.substring(0, 8) + '...' : 'empty',
+                  appSecret: state.appSecret ? 'set' : 'empty',
+                  receiveId: state.receiveId || 'empty',
+                  receiveIdType: state.receiveIdType
+                });
+                testConnection();
+              }} 
+            />
             <Action title={t.fixSettings} onAction={prevStep} />
+            <Action 
+              title="📊 Stateを表示" 
+              onAction={() => {
+                console.log('📊 現在のOnboarding State:', state);
+                showToast({
+                  style: Toast.Style.Success,
+                  title: `State: ${state.appId ? 'App IDあり' : 'App IDなし'}`,
+                  message: `Secret: ${state.appSecret ? 'あり' : 'なし'}, Email: ${state.receiveId || 'なし'}`
+                });
+              }} 
+            />
           </ActionPanel>
         }
       />
@@ -418,6 +461,8 @@ ${t.completeDesc}
 - ✅ ${t.larkConnected}
 - ✅ ${t.messageTestSuccess}
 - ✅ ${t.allSettingsOk}
+- ✅ LocalStorageに設定保存済み
+- ✅ Extension Preferencesへの保存試行済み
 
 ## 🚀 ${t.usage}
 
@@ -426,13 +471,67 @@ ${t.completeDesc}
 3. ${t.usageStep3}
 4. ${t.usageStep4}
 
-## ⚙️ ${t.saveSettings}
+## 📋 Extension Preferencesへの保存（推奨）
 
-設定が自動的に保存されました。すぐに使用できます！`}
+**より安全な保存**のため、Extension Preferencesにも設定を保存することを推奨します。
+
+**メリット:**
+- 🔒 より安全な保存
+- 🔄 アップデート時も設定が残る
+- 📊 設定の一元管理
+
+下のボタンで設定をコピーし、Preferencesでペーストしてください。`}
         actions={
           <ActionPanel>
-            <Action title={t.saveSettingsBtn} onAction={completeSetup} />
-            <Action title={t.complete} onAction={pop} />
+            <Action title={t.complete} onAction={completeSetup} />
+            <Action 
+              title="🔄 Extension Preferencesに再保存" 
+              onAction={async () => {
+                try {
+                  await writeToExtensionPreferences({
+                    larkDomain: state.domain,
+                    appId: state.appId,
+                    appSecret: state.appSecret,
+                    receiveIdType: state.receiveIdType,
+                    receiveId: state.receiveId,
+                    prefixTimestamp: false
+                  });
+                  showToast({
+                    style: Toast.Style.Success,
+                    title: "✅ Extension Preferences保存成功",
+                    message: "設定が正常に保存されました"
+                  });
+                } catch (error) {
+                  showToast({
+                    style: Toast.Style.Failure,
+                    title: "❌ Extension Preferences保存失敗",
+                    message: "手動でPreferencesを設定してください"
+                  });
+                  await openExtensionPreferences();
+                }
+              }}
+            />
+            <Action 
+              title="🔑 App IDをコピー" 
+              onAction={async () => {
+                await Clipboard.copy(state.appId);
+                showToast({ style: Toast.Style.Success, title: "App IDをコピー", message: state.appId.substring(0, 12) + "..." });
+              }}
+            />
+            <Action 
+              title="🔒 App Secretをコピー" 
+              onAction={async () => {
+                await Clipboard.copy(state.appSecret);
+                showToast({ style: Toast.Style.Success, title: "App Secretをコピー", message: state.appSecret.substring(0, 12) + "..." });
+              }}
+            />
+            <Action 
+              title="📧 Receive IDをコピー" 
+              onAction={async () => {
+                await Clipboard.copy(state.receiveId);
+                showToast({ style: Toast.Style.Success, title: "Receive IDをコピー", message: state.receiveId });
+              }}
+            />
           </ActionPanel>
         }
       />

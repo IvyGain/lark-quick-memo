@@ -9,8 +9,18 @@ type Prefs = {
   prefixTimestamp?: boolean;
 };
 
-export async function getTenantAccessToken(): Promise<string> {
-  const { larkDomain, appId, appSecret } = getPreferenceValues<Prefs>();
+export async function getTenantAccessToken(preferences?: Partial<Prefs>): Promise<string> {
+  let larkDomain: string, appId: string, appSecret: string;
+  
+  if (preferences && preferences.larkDomain && preferences.appId && preferences.appSecret) {
+    // 引数で渡された値を使用（テスト時など）
+    ({ larkDomain, appId, appSecret } = preferences as Prefs);
+  } else {
+    // 通常のPreferencesから読み込み
+    const prefs = getPreferenceValues<Prefs>();
+    ({ larkDomain, appId, appSecret } = prefs);
+  }
+  
   if (!larkDomain || !appId || !appSecret) {
     throw new Error("Preferences未設定（larkDomain/appId/appSecret）");
   }
@@ -27,8 +37,17 @@ export async function getTenantAccessToken(): Promise<string> {
   return data.tenant_access_token as string;
 }
 
-export async function sendTextMessage(token: string, text: string) {
-  const { larkDomain, receiveIdType, receiveId } = getPreferenceValues<Prefs>();
+export async function sendTextMessage(token: string, text: string, preferences?: Partial<Prefs>) {
+  let larkDomain: string, receiveIdType: string, receiveId: string;
+  
+  if (preferences && preferences.larkDomain && preferences.receiveIdType && preferences.receiveId) {
+    // 引数で渡された値を使用
+    ({ larkDomain, receiveIdType, receiveId } = preferences as Prefs);
+  } else {
+    // 通常のPreferencesから読み込み
+    const prefs = getPreferenceValues<Prefs>();
+    ({ larkDomain, receiveIdType, receiveId } = prefs);
+  }
   if (!receiveId || !receiveIdType) throw new Error("Preferences未設定（receiveId/receiveIdType）");
   const url = `${larkDomain}/open-apis/im/v1/messages?receive_id_type=${receiveIdType}`;
   const body = { receive_id: receiveId, msg_type: "text", content: JSON.stringify({ text }) };

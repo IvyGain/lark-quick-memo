@@ -58,17 +58,14 @@ export default function Command() {
       // 新しいpreferencesシステムを使用
       const prefs = await getEffectivePreferences();
       
-      // Mock getPreferenceValues for lark.ts compatibility
-      const originalGet = getPreferenceValues;
-      (global as any).getPreferenceValues = () => prefs;
+      // 引数で設定を渡してAPI呼び出し
+      const token = await getTenantAccessToken(prefs);
       
-      const token = await getTenantAccessToken();
-      const decorated = decorateWithTimestamp(values.memo, !!prefs.prefixTimestamp);
+      // タイムスタンプはユーザー設定に従う（デフォルトはfalse）
+      const message = prefs.prefixTimestamp ? decorateWithTimestamp(values.memo, true) : values.memo;
+      
       // 429対策: 1回だけ指数バックオフで再試行
-      await withExponentialBackoff(() => sendTextMessage(token, decorated), { retries: 1, baseMs: 500 });
-      
-      // Restore original function
-      (global as any).getPreferenceValues = originalGet;
+      await withExponentialBackoff(() => sendTextMessage(token, message, prefs), { retries: 1, baseMs: 500 });
       
       await showHUD(t.sent);
       pop();
