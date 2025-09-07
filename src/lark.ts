@@ -38,6 +38,8 @@ export async function getTenantAccessToken(preferences?: Partial<Prefs>): Promis
 }
 
 export async function sendTextMessage(token: string, text: string, preferences?: Partial<Prefs>) {
+  console.log("🔌 sendTextMessage called with:", { text, hasPreferences: !!preferences });
+  
   let larkDomain: string, receiveIdType: string, receiveId: string;
   
   if (preferences && preferences.larkDomain && preferences.receiveIdType && preferences.receiveId) {
@@ -50,6 +52,10 @@ export async function sendTextMessage(token: string, text: string, preferences?:
   }
   if (!receiveId || !receiveIdType) throw new Error("Preferences未設定（receiveId/receiveIdType）");
   const url = `${larkDomain}/open-apis/im/v1/messages?receive_id_type=${receiveIdType}`;
+  
+  console.log("📮 送信するテキスト内容:", text);
+  console.log("🏷️ テキストの長さ:", text.length);
+  
   const body = { receive_id: receiveId, msg_type: "text", content: JSON.stringify({ text }) };
   const res = await fetch(url, {
     method: "POST",

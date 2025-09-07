@@ -12,7 +12,7 @@ import {
   LocalStorage
 } from "@raycast/api";
 import { useState, useEffect } from "react";
-import { decorateWithTimestamp, withExponentialBackoff } from "./utils";
+import { withExponentialBackoff } from "./utils";
 import { getTenantAccessToken, sendTextMessage } from "./lark";
 import { isSetupComplete, getSetupStatus } from "./utils/setup-checker";
 import { getEffectivePreferences, isEffectiveSetupComplete } from "./utils/preferences";
@@ -56,16 +56,27 @@ export default function Command() {
 
   async function onSubmit(values: { memo: string }) {
     try {
+      console.log("🚀 メッセージ送信開始");
+      console.log("📨 入力されたメッセージ:", values.memo);
+      
       // 新しいpreferencesシステムを使用
       const prefs = await getEffectivePreferences();
+      console.log("⚙️ 取得した設定:", {
+        ...prefs,
+        appSecret: prefs.appSecret ? "***" : undefined
+      });
       
       // 引数で設定を渡してAPI呼び出し
       const token = await getTenantAccessToken(prefs);
       
-      // タイムスタンプは明示的にfalseに設定（ユーザーの要望により無効化）
-      console.log("🕐 タイムスタンプ設定:", prefs.prefixTimestamp, "→ 強制的にfalse");
-      const message = values.memo; // タイムスタンプを付けない
-      console.log("📝 送信メッセージ:", message);
+      // タイムスタンプは絶対に付けない
+      const message = values.memo;
+      console.log("📤 送信するメッセージ（タイムスタンプなし）:", message);
+      console.log("🔍 メッセージ内容確認:", {
+        original: values.memo,
+        toSend: message,
+        identical: values.memo === message
+      });
       
       // 429対策: 1回だけ指数バックオフで再試行
       await withExponentialBackoff(() => sendTextMessage(token, message, prefs), { retries: 1, baseMs: 500 });
