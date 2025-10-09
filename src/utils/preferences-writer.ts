@@ -1,5 +1,4 @@
 import { LocalStorage } from "@raycast/api";
-import { execSync } from "child_process";
 
 /**
  * Extension Preferencesに設定を書き込む
@@ -15,7 +14,7 @@ export async function writeToExtensionPreferences(settings: {
 }): Promise<void> {
   try {
     console.log("🔧 設定をLocalStorageに保存中...");
-    
+
     // LocalStorageに確実に保存（Extension Preferencesの直接操作は危険なため無効化）
     await LocalStorage.setItem("larkDomain", settings.larkDomain);
     await LocalStorage.setItem("appId", settings.appId);
@@ -23,13 +22,12 @@ export async function writeToExtensionPreferences(settings: {
     await LocalStorage.setItem("receiveIdType", settings.receiveIdType);
     await LocalStorage.setItem("receiveId", settings.receiveId);
     await LocalStorage.setItem("prefixTimestamp", settings.prefixTimestamp.toString());
-    
+
     console.log("✅ LocalStorageに設定を保存しました");
     console.log("💡 手動でExtension Preferencesに設定をコピーすることもできます");
-    
+
     // Extension Preferencesへの直接書き込みは安全性のため無効化
     // ユーザーには手動設定を推奨
-    
   } catch (error) {
     console.error("❌ 設定保存エラー:", error);
     throw error;
@@ -48,7 +46,7 @@ export function readFromExtensionPreferences(): any {
       appSecret: process.env.LARK_APP_SECRET || "",
       receiveIdType: process.env.LARK_RECEIVE_ID_TYPE || "email",
       receiveId: process.env.LARK_RECEIVE_ID || "",
-      prefixTimestamp: process.env.LARK_PREFIX_TIMESTAMP === "true"
+      prefixTimestamp: process.env.LARK_PREFIX_TIMESTAMP === "true",
     };
   } catch (error) {
     console.error("Extension Preferences読み込みエラー:", error);

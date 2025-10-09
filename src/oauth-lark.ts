@@ -18,20 +18,20 @@ const client = new OAuth.PKCEClient({
 
 export async function authorize(): Promise<void> {
   const { larkDomain, appId } = getPreferenceValues<Prefs>();
-  
+
   const authRequest = await client.authorizationRequest({
     endpoint: `${larkDomain}/open-apis/authen/v1/authorize`,
     clientId: appId,
     scope: "im:message:send_as_user contact:user.id:readonly",
   });
-  
+
   const { authorizationCode } = await client.authorize(authRequest);
   await exchangeCodeForTokens(authorizationCode);
 }
 
 async function exchangeCodeForTokens(code: string): Promise<void> {
   const { larkDomain, appId, appSecret } = getPreferenceValues<Prefs>();
-  
+
   const response = await fetch(`${larkDomain}/open-apis/authen/v1/oidc/access_token`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -42,12 +42,12 @@ async function exchangeCodeForTokens(code: string): Promise<void> {
       client_secret: appSecret,
     }),
   });
-  
+
   const data: any = await response.json();
   if (!response.ok || data.code !== 0) {
     throw new Error(`OAuth error: ${data.code} ${data.msg}`);
   }
-  
+
   await client.setTokens({
     accessToken: data.data.access_token,
     refreshToken: data.data.refresh_token,
@@ -57,20 +57,20 @@ async function exchangeCodeForTokens(code: string): Promise<void> {
 
 export async function getUserAccessToken(): Promise<string> {
   const tokens = await client.getTokens();
-  
+
   if (!tokens?.accessToken) {
     await authorize();
     const newTokens = await client.getTokens();
     return newTokens?.accessToken || "";
   }
-  
+
   return tokens.accessToken;
 }
 
 export async function sendUserMessage(text: string): Promise<void> {
   const token = await getUserAccessToken();
   const { larkDomain, receiveId } = getPreferenceValues<Prefs>();
-  
+
   const response = await fetch(`${larkDomain}/open-apis/im/v1/messages?receive_id_type=user_id`, {
     method: "POST",
     headers: {
@@ -83,7 +83,7 @@ export async function sendUserMessage(text: string): Promise<void> {
       content: JSON.stringify({ text }),
     }),
   });
-  
+
   const data: any = await response.json();
   if (!response.ok || data.code !== 0) {
     throw new Error(`Send message error: ${data.code} ${data.msg}`);

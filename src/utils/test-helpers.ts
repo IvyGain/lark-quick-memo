@@ -8,11 +8,10 @@ export async function clearAllStoredData(): Promise<void> {
   try {
     // 言語設定をクリア
     await LocalStorage.removeItem("preferred-language");
-    
+
     console.log("✅ 保存されたデータをクリアしました");
     console.log("- 言語設定: クリア済み");
     console.log("- Extension Preferences: 手動でクリアしてください");
-    
   } catch (error) {
     console.error("❌ データクリア中にエラーが発生しました:", error);
   }
@@ -24,10 +23,9 @@ export async function clearAllStoredData(): Promise<void> {
 export async function showCurrentSettings(): Promise<void> {
   try {
     const language = await LocalStorage.getItem<string>("preferred-language");
-    
+
     console.log("📊 現在の設定状態:");
     console.log(`- 言語設定: ${language || "未設定"}`);
-    
   } catch (error) {
     console.error("❌ 設定確認中にエラーが発生しました:", error);
   }

@@ -35,3 +35,6 @@ logs
 
 # Package lock files (optional - keep package-lock.json for consistency)
 # package-lock.json
+
+# ESLint cache
+.eslintcache

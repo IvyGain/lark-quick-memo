@@ -15,7 +15,7 @@ type ExtensionPreferences = {
   /** App Secret - Your Lark app secret from developer console */
   "appSecret"?: string,
   /** Receive ID Type - Type of recipient identifier */
-  "receiveIdType": "email" | "open_id",
+  "receiveIdType": "email" | "open_id" | "chat_id",
   /** Receive ID - Your Lark login email or open_id */
   "receiveId"?: string,
   /** Prefix Timestamp - Add timestamp prefix to messages */

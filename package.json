@@ -1,21 +1,25 @@
 {
   "$schema": "https://www.raycast.com/schemas/extension.json",
   "name": "lark-quick-memo",
-  "title": "Lark Quick Memo",
-  "description": "Send quick memos to Lark/Feishu with one action",
+  "title": "Flashlarkpost",
+  "version": "1.0.0",
+  "description": "A powerful Raycast extension for sending quick memos to Lark/Feishu with advanced features including file attachments, templates, and message history",
   "icon": "icon.png",
   "author": "morio",
   "categories": [
-    "Productivity"
+    "Productivity",
+    "Communication"
   ],
   "license": "MIT",
+  "type": "module",
   "commands": [
     {
       "name": "quick-memo",
-      "title": "Send Memo to Lark",
+      "title": "Flashlarkpost",
       "subtitle": "Send quick memo to Lark/Feishu",
       "description": "Send a text memo to your Lark/Feishu DM with one action",
-      "mode": "view"
+      "mode": "view",
+      "main": "src/quick-memo.tsx"
     }
   ],
   "preferences": [
@@ -66,6 +70,10 @@
         {
           "title": "Open ID",
           "value": "open_id"
+        },
+        {
+          "title": "Chat ID",
+          "value": "chat_id"
         }
       ]
     },
@@ -87,16 +95,25 @@
     }
   ],
   "dependencies": {
-    "@raycast/api": "^1.102.6"
+    "@raycast/api": "^1.103.2"
   },
   "devDependencies": {
+    "@babel/cli": "^7.28.3",
+    "@babel/core": "^7.28.4",
+    "@babel/preset-env": "^7.28.3",
+    "@babel/preset-react": "^7.27.1",
+    "@babel/preset-typescript": "^7.27.1",
     "@raycast/utils": "^1.19.0",
     "@types/node": "20.8.10",
     "@types/react": "^18.3.24",
+    "@typescript-eslint/eslint-plugin": "^8.44.1",
+    "@typescript-eslint/parser": "^8.44.1",
+    "eslint": "^9.36.0",
+    "prettier": "^3.6.2",
     "typescript": "^5.4.5"
   },
   "scripts": {
-    "build": "ray build -e dist",
+    "build": "ray build",
     "dev": "ray develop",
     "fix-lint": "ray lint --fix",
     "lint": "ray lint",

@@ -1,10 +1,10 @@
-import { getPreferenceValues, LocalStorage, showToast, Toast, Clipboard } from "@raycast/api";
+import { getPreferenceValues, LocalStorage } from "@raycast/api";
 
 type Prefs = {
   larkDomain?: string;
   appId?: string;
   appSecret?: string;
-  receiveIdType?: "email" | "open_id";
+  receiveIdType?: "email" | "open_id" | "chat_id";
   receiveId?: string;
   prefixTimestamp?: boolean;
 };
@@ -15,14 +15,15 @@ type Prefs = {
 export async function suggestSettingsToPreferences(): Promise<string> {
   try {
     // LocalStorageから現在の設定を取得
-    const [larkDomain, appId, appSecret, receiveIdType, receiveId, prefixTimestamp] = await Promise.all([
-      LocalStorage.getItem<string>("larkDomain"),
-      LocalStorage.getItem<string>("appId"),
-      LocalStorage.getItem<string>("appSecret"),
-      LocalStorage.getItem<string>("receiveIdType"),
-      LocalStorage.getItem<string>("receiveId"),
-      LocalStorage.getItem<string>("prefixTimestamp")
-    ]);
+    const [larkDomain, appId, appSecret, receiveIdType, receiveId, prefixTimestamp] =
+      await Promise.all([
+        LocalStorage.getItem<string>("larkDomain"),
+        LocalStorage.getItem<string>("appId"),
+        LocalStorage.getItem<string>("appSecret"),
+        LocalStorage.getItem<string>("receiveIdType"),
+        LocalStorage.getItem<string>("receiveId"),
+        LocalStorage.getItem<string>("prefixTimestamp"),
+      ]);
 
     // Extension Preferences用の設定テキストを生成
     const settingsText = `Lark Quick Memo - 設定値一覧
@@ -52,7 +53,7 @@ Prefix Timestamp: ${prefixTimestamp === "true" ? "ON (チェック)" : "OFF (チ
 export async function syncPreferencesToLocalStorage(): Promise<boolean> {
   try {
     const prefs = getPreferenceValues<Prefs>();
-    
+
     // Extension Preferencesに設定がある場合のみLocalStorageに同期
     if (prefs.appId && prefs.appSecret && prefs.receiveId) {
       await LocalStorage.setItem("larkDomain", prefs.larkDomain || "https://open.larksuite.com");
@@ -61,11 +62,11 @@ export async function syncPreferencesToLocalStorage(): Promise<boolean> {
       await LocalStorage.setItem("receiveIdType", prefs.receiveIdType || "email");
       await LocalStorage.setItem("receiveId", prefs.receiveId);
       await LocalStorage.setItem("prefixTimestamp", (prefs.prefixTimestamp === true).toString());
-      
+
       console.log("✅ Extension PreferencesからLocalStorageに設定を同期しました");
       return true;
     }
-    
+
     console.log("⚠️ Extension Preferencesに十分な設定がありません");
     return false;
   } catch (error) {
@@ -87,15 +88,15 @@ export async function checkSettingsStatus(): Promise<{
     const [lsAppId, lsAppSecret, lsReceiveId] = await Promise.all([
       LocalStorage.getItem<string>("appId"),
       LocalStorage.getItem<string>("appSecret"),
-      LocalStorage.getItem<string>("receiveId")
+      LocalStorage.getItem<string>("receiveId"),
     ]);
-    
+
     const hasLocalStorage = !!(lsAppId && lsAppSecret && lsReceiveId);
-    
+
     // Extension Preferencesの設定を確認
     const prefs = getPreferenceValues<Prefs>();
     const hasPreferences = !!(prefs.appId && prefs.appSecret && prefs.receiveId);
-    
+
     // 推奨アクションを決定
     let recommendAction: "use_localStorage" | "use_preferences" | "setup_needed";
     if (hasPreferences) {
@@ -105,18 +106,18 @@ export async function checkSettingsStatus(): Promise<{
     } else {
       recommendAction = "setup_needed";
     }
-    
+
     return {
       hasLocalStorage,
-      hasPreferences, 
-      recommendAction
+      hasPreferences,
+      recommendAction,
     };
   } catch (error) {
     console.error("設定状況確認エラー:", error);
     return {
       hasLocalStorage: false,
       hasPreferences: false,
-      recommendAction: "setup_needed"
+      recommendAction: "setup_needed",
     };
   }
 }

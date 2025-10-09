@@ -2,7 +2,7 @@ export function decorateWithTimestamp(text: string, enabled: boolean): string {
   if (!enabled) return text;
   const now = new Date();
   const pad = (n: number) => n.toString().padStart(2, "0");
-  const stamp = 
+  const stamp =
     `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ` +
     `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
   return `[${stamp}] ${text}`;
