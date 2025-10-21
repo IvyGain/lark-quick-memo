@@ -1,5 +1,13 @@
 import { getPreferenceValues, LocalStorage } from "@raycast/api";
 
+// URL構築のヘルパー関数
+function buildUrl(domain: string, path: string): string {
+  if (domain.startsWith("https://") || domain.startsWith("http://")) {
+    return `${domain}${path}`;
+  }
+  return `https://${domain}${path}`;
+}
+
 type Prefs = {
   larkDomain: string;
   appId: string;
@@ -92,7 +100,7 @@ export async function getTenantAccessToken(preferences?: Partial<Prefs>): Promis
   if (!larkDomain || !appId || !appSecret) {
     throw new Error("Preferences未設定（larkDomain/appId/appSecret）");
   }
-  const url = `${larkDomain}/open-apis/auth/v3/tenant_access_token/internal`;
+  const url = buildUrl(larkDomain, "/open-apis/auth/v3/tenant_access_token/internal");
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -119,10 +127,32 @@ export async function sendTextMessage(token: string, text: string, preferences?:
     ({ larkDomain, receiveIdType, receiveId } = prefs);
   }
   if (!receiveId || !receiveIdType) throw new Error("Preferences未設定（receiveId/receiveIdType）");
-  const url = `${larkDomain}/open-apis/im/v1/messages?receive_id_type=${receiveIdType}`;
+
+  // Chat IDの形式を確認し、適切なreceive_id_typeを設定
+  let actualReceiveIdType = receiveIdType;
+  if (receiveId.startsWith("oc_")) {
+    // oc_で始まるIDはグループチャットのChat ID
+    actualReceiveIdType = "chat_id";
+    console.log("🔄 グループチャットのChat IDを検出、receive_id_typeをchat_idに設定");
+  } else if (receiveId.includes("@")) {
+    // @を含むIDはメールアドレス
+    actualReceiveIdType = "email";
+    console.log("🔄 メールアドレスを検出、receive_id_typeをemailに設定");
+  } else if (receiveId.startsWith("ou_")) {
+    // ou_で始まるIDはopen_id
+    actualReceiveIdType = "open_id";
+    console.log("🔄 Open IDを検出、receive_id_typeをopen_idに設定");
+  }
+
+  const url = buildUrl(
+    larkDomain,
+    `/open-apis/im/v1/messages?receive_id_type=${actualReceiveIdType}`
+  );
 
   console.log("📮 送信するテキスト内容:", text);
   console.log("🏷️ テキストの長さ:", text.length);
+  console.log("🎯 送信先ID:", receiveId);
+  console.log("🔧 使用するreceive_id_type:", actualReceiveIdType);
 
   const body = { receive_id: receiveId, msg_type: "text", content: JSON.stringify({ text }) };
   const res = await fetch(url, {
@@ -132,8 +162,17 @@ export async function sendTextMessage(token: string, text: string, preferences?:
   });
   const data: any = await res.json();
   if (!res.ok || (data && data.code)) {
+    console.error("❌ 送信エラー詳細:", {
+      status: res.status,
+      code: data?.code,
+      msg: data?.msg,
+      receiveId,
+      actualReceiveIdType,
+      url,
+    });
     throw new Error(`send message error: ${data?.code ?? res.status} ${data?.msg ?? ""}`);
   }
+  console.log("✅ メッセージ送信成功");
   return data;
 }
 
@@ -148,7 +187,7 @@ export async function uploadFile(
   const larkDomain = getPreferenceValues<Prefs>().larkDomain;
   const isImage = fileType.startsWith("image/");
   const endpoint = isImage ? "/open-apis/im/v1/images" : "/open-apis/im/v1/files";
-  const url = `${larkDomain}${endpoint}`;
+  const url = buildUrl(larkDomain, endpoint);
 
   console.log("📤 Upload URL:", url, "| isImage:", isImage);
 
@@ -281,9 +320,28 @@ export async function sendFileMessage(
     throw new Error("Preferences未設定（larkDomain/receiveIdType/receiveId）");
   }
 
-  console.log("📨 Send config:", { larkDomain, receiveIdType, receiveId });
+  // Chat IDの形式を確認し、適切なreceive_id_typeを設定
+  let actualReceiveIdType = receiveIdType;
+  if (receiveId.startsWith("oc_")) {
+    // oc_で始まるIDはグループチャットのChat ID
+    actualReceiveIdType = "chat_id";
+    console.log("🔄 グループチャットのChat IDを検出、receive_id_typeをchat_idに設定");
+  } else if (receiveId.includes("@")) {
+    // @を含むIDはメールアドレス
+    actualReceiveIdType = "email";
+    console.log("🔄 メールアドレスを検出、receive_id_typeをemailに設定");
+  } else if (receiveId.startsWith("ou_")) {
+    // ou_で始まるIDはopen_id
+    actualReceiveIdType = "open_id";
+    console.log("🔄 Open IDを検出、receive_id_typeをopen_idに設定");
+  }
 
-  const url = `${larkDomain}/open-apis/im/v1/messages?receive_id_type=${receiveIdType}`;
+  console.log("📨 Send config:", { larkDomain, receiveIdType: actualReceiveIdType, receiveId });
+
+  const url = buildUrl(
+    larkDomain,
+    `/open-apis/im/v1/messages?receive_id_type=${actualReceiveIdType}`
+  );
   console.log("📨 Send URL:", url);
 
   const messageType = fileType.startsWith("image/") ? "image" : "file";
@@ -348,7 +406,7 @@ export async function getBotInfo(
   }
 
   try {
-    const url = `${larkDomain}/open-apis/bot/v3/info`;
+    const url = buildUrl(larkDomain, "/open-apis/bot/v3/info");
 
     const res = await fetch(url, {
       method: "GET",
@@ -411,20 +469,30 @@ export async function getChatList(
   token: string,
   preferences?: Partial<Prefs>
 ): Promise<ChatInfo[]> {
-  console.log("📋 getChatList called");
+  console.log("🚀 getChatList called - 包括的な調査開始");
 
-  let larkDomain: string;
+  let larkDomain: string, appId: string, appSecret: string;
 
   if (preferences && preferences.larkDomain) {
     ({ larkDomain } = preferences as Prefs);
+    const prefs = preferences || getPreferenceValues<Prefs>();
+    appId = prefs.appId;
+    appSecret = prefs.appSecret;
   } else {
     const prefs = getPreferenceValues<Prefs>();
-    ({ larkDomain } = prefs);
+    ({ larkDomain, appId, appSecret } = prefs);
   }
 
   if (!larkDomain) {
     throw new Error("Preferences未設定（larkDomain）");
   }
+
+  // API権限とスコープの詳細確認
+  console.log("🔐 API権限とスコープの確認:");
+  console.log(`  - App ID: ${appId ? appId.substring(0, 8) + "..." : "未設定"}`);
+  console.log(`  - App Secret: ${appSecret ? "設定済み" : "未設定"}`);
+  console.log(`  - Lark Domain: ${larkDomain}`);
+  console.log(`  - Token: ${token ? token.substring(0, 20) + "..." : "未設定"}`);
 
   const chats: ChatInfo[] = [];
 
@@ -501,135 +569,78 @@ export async function getChatList(
     console.warn("デフォルト送信先の設定エラー:", error);
   }
 
-  // 2. チャット一覧を取得（ページネーション対応）
-  try {
-    let pageToken = "";
-    let hasMore = true;
-    const maxPages = 5; // 最大5ページまで取得
-    let currentPage = 0;
+  // 2. 複数のアプローチでチャット一覧を取得
+  console.log("🔍 複数のアプローチでチャット一覧を取得開始");
 
-    while (hasMore && currentPage < maxPages) {
-      const params = new URLSearchParams({
-        page_size: "50", // 1ページあたり50件
-        ...(pageToken && { page_token: pageToken }),
-      });
+  // アプローチ1: 最小限のパラメータで全チャット取得
+  await fetchChatsWithApproach(
+    "最小限パラメータ",
+    {
+      page_size: "100", // ページサイズを増加
+    },
+    token,
+    larkDomain,
+    chats
+  );
 
-      const url = `${larkDomain}/open-apis/im/v1/chats?${params}`;
+  // アプローチ2: グループチャットのみ取得
+  await fetchChatsWithApproach(
+    "グループチャットのみ",
+    {
+      page_size: "100",
+      chat_type: "group",
+    },
+    token,
+    larkDomain,
+    chats
+  );
 
-      const res = await fetch(url, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
+  // アプローチ3: メンバーシップ条件付きで取得
+  await fetchChatsWithApproach(
+    "メンバーシップ条件付き",
+    {
+      page_size: "100",
+      membership: "member",
+    },
+    token,
+    larkDomain,
+    chats
+  );
 
-      const data: any = await res.json();
-      if (!res.ok || (data && data.code)) {
-        console.warn(`get chat list warning: ${data?.code ?? res.status} ${data?.msg ?? ""}`);
-        break;
-      } else {
-        // APIレスポンスからChatInfo形式に変換
-        const apiChats: ChatInfo[] = (data.data?.items || []).map((chat: any) => ({
-          chat_id: chat.chat_id,
-          name: chat.name || chat.chat_id,
-          description: chat.description,
-          chat_type: chat.chat_type || "group", // デフォルトはgroup
-          avatar: chat.avatar,
-          is_default: false,
-        }));
+  // アプローチ4: 個人チャット取得
+  await fetchChatsWithApproach(
+    "個人チャット",
+    {
+      page_size: "100",
+      chat_type: "p2p",
+    },
+    token,
+    larkDomain,
+    chats
+  );
 
-        // 重複を避けて追加（デフォルトBotとして既に追加されているものは除外）
-        apiChats.forEach((apiChat) => {
-          const existingChat = chats.find((chat) => chat.chat_id === apiChat.chat_id);
-          if (!existingChat) {
-            chats.push(apiChat);
-          } else if (existingChat.is_default) {
-            // デフォルトBotとして既に追加されている場合は、グループチャットとしては追加しない
-            console.log(
-              `🤖 デフォルトBotとして既に追加済み: ${existingChat.name} (${apiChat.chat_id})`
-            );
-          }
-        });
+  // 3. 代替エンドポイントの試行
+  console.log("🔄 代替エンドポイントの試行");
+  await tryAlternativeEndpoints(token, larkDomain, chats);
 
-        // 次のページがあるかチェック
-        pageToken = data.data?.page_token || "";
-        hasMore = data.data?.has_more || false;
-        currentPage++;
+  console.log(`📋 最終的に取得したチャット数: ${chats.length}`);
 
-        console.log(`📄 ページ ${currentPage}: ${apiChats.length}件のチャットを取得`);
-      }
+  // 全チャットの詳細リストを出力
+  console.log(`🔍 全チャット一覧:`);
+  chats.forEach((chat, index) => {
+    console.log(
+      `  ${index + 1}. ${chat.name} (${chat.chat_id}) - Type: ${chat.chat_type}, Default: ${chat.is_default}`
+    );
+
+    // SkillFreak大改修PJの最終チェック
+    if (
+      chat.name.includes("SkillFreak") ||
+      chat.name.includes("大改修") ||
+      chat.name.includes("PJ")
+    ) {
+      console.log(`🎯 最終チェック - 関連チャット発見: ${chat.name} (${chat.chat_id})`);
     }
-  } catch (error) {
-    console.warn("チャット一覧取得エラー:", error);
-  }
-
-  // 2.5. 個人チャット（P2P）の取得を試行
-  try {
-    // 個人チャット用のパラメータを試す
-    const params = new URLSearchParams({
-      page_size: "50",
-      chat_type: "p2p", // 個人チャットのみ
-    });
-
-    const url = `${larkDomain}/open-apis/im/v1/chats?${params}`;
-
-    const res = await fetch(url, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    });
-
-    const data: any = await res.json();
-    if (res.ok && data && !data.code) {
-      const p2pChats: ChatInfo[] = (data.data?.items || []).map((chat: any) => {
-        // チャット名の改善：メールアドレスの場合は名前部分のみ表示
-        let displayName = chat.name || chat.chat_id;
-        if (!chat.name && chat.chat_id) {
-          // メールアドレスの場合は@より前の部分を使用
-          if (chat.chat_id.includes("@")) {
-            const emailParts = chat.chat_id.split("@");
-            displayName = emailParts[0];
-          } else {
-            displayName = chat.chat_id;
-          }
-        }
-
-        return {
-          chat_id: chat.chat_id,
-          name: displayName,
-          description: chat.description || "個人チャット",
-          chat_type: "p2p" as const,
-          avatar: chat.avatar,
-          is_default: false,
-        };
-      });
-
-      // 重複を避けて追加（デフォルトBotとして既に追加されているものは除外）
-      p2pChats.forEach((p2pChat) => {
-        const existingChat = chats.find((chat) => chat.chat_id === p2pChat.chat_id);
-        if (!existingChat) {
-          chats.push(p2pChat);
-        } else if (existingChat.is_default) {
-          // デフォルトBotとして既に追加されている場合は、P2Pチャットとしては追加しない
-          console.log(
-            `🤖 デフォルトBotとして既に追加済み: ${existingChat.name} (${p2pChat.chat_id})`
-          );
-        }
-      });
-
-      console.log(`👤 個人チャット: ${p2pChats.length}件を取得`);
-    }
-  } catch (error) {
-    console.warn("個人チャット取得エラー:", error);
-  }
-
-  // 3. 重複チェック：設定されたreceiveIdが既に追加されているかチェック
-  // （上記で既に処理済みなので、この処理は不要）
-
-  console.log(`📋 取得したチャット数: ${chats.length}`);
+  });
 
   // ユーザーへの説明用ログ
   const defaultChats = chats.filter((chat) => chat.is_default);
@@ -640,6 +651,38 @@ export async function getChatList(
   console.log(`👥 グループチャット: ${groupChats.length}件`);
   console.log(`👤 個人チャット: ${p2pChats.length}件`);
 
+  // SkillFreak大改修PJが見つからない場合の警告
+  const skillFreakChat = chats.find(
+    (chat) =>
+      chat.name.includes("SkillFreak") && chat.name.includes("大改修") && chat.name.includes("PJ")
+  );
+
+  if (!skillFreakChat) {
+    console.warn(`⚠️ 「SkillFreak大改修PJ」チャットが見つかりませんでした`);
+    console.warn(`🔍 取得したグループチャット一覧:`);
+    groupChats.forEach((chat) => {
+      console.warn(`  - ${chat.name} (${chat.chat_id})`);
+    });
+
+    // 特別検索: SkillFreakを含む全チャットを検索
+    console.warn(`🔍 SkillFreakを含む全チャットの検索:`);
+    const skillFreakRelated = chats.filter(
+      (chat) =>
+        chat.name.toLowerCase().includes("skill") ||
+        chat.name.toLowerCase().includes("freak") ||
+        chat.name.includes("改修") ||
+        chat.name.includes("PJ") ||
+        chat.name.includes("プロジェクト")
+    );
+    skillFreakRelated.forEach((chat) => {
+      console.warn(`  - 関連可能性: ${chat.name} (${chat.chat_id})`);
+    });
+  } else {
+    console.log(
+      `✅ 「SkillFreak大改修PJ」チャットを発見: ${skillFreakChat.name} (${skillFreakChat.chat_id})`
+    );
+  }
+
   if (chats.length === 1 && defaultChats.length === 1) {
     console.log(
       "ℹ️ ボットが参加しているチャットのみ表示されます。他のチャットを表示するには、グループチャットにボットを追加してください。"
@@ -647,6 +690,201 @@ export async function getChatList(
   }
 
   return chats;
+}
+
+// ヘルパー関数: 指定されたアプローチでチャットを取得
+async function fetchChatsWithApproach(
+  approachName: string,
+  params: Record<string, string>,
+  token: string,
+  larkDomain: string,
+  chats: ChatInfo[]
+): Promise<void> {
+  console.log(`🔍 アプローチ「${approachName}」でチャット取得開始`);
+
+  try {
+    let pageToken = "";
+    let hasMore = true;
+    const maxPages = 10; // 最大10ページまで取得
+    let currentPage = 0;
+    let totalFetched = 0;
+
+    while (hasMore && currentPage < maxPages) {
+      const requestParams = new URLSearchParams({
+        ...params,
+        ...(pageToken && { page_token: pageToken }),
+      });
+
+      console.log(
+        `🔍 ${approachName} - ページ ${currentPage + 1} のリクエストパラメータ:`,
+        requestParams.toString()
+      );
+
+      const url = buildUrl(larkDomain, `/open-apis/im/v1/chats?${requestParams}`);
+      console.log(`🔗 リクエストURL: ${url}`);
+
+      const res = await fetch(url, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      console.log(`📡 ${approachName} - レスポンスヘッダー:`, res.headers);
+
+      const data: any = await res.json();
+
+      // APIレスポンスの完全ログ出力
+      console.log(`🔍 ${approachName} - API Response Status: ${res.status}`);
+      console.log(`🔍 ${approachName} - API Response Data:`, JSON.stringify(data, null, 2));
+
+      if (!res.ok || (data && data.code)) {
+        console.warn(`${approachName} - エラー: ${data?.code ?? res.status} ${data?.msg ?? ""}`);
+        console.warn(`🔍 ${approachName} - Full error response:`, data);
+
+        // エラーでも継続処理
+        if (data?.code === 99991663) {
+          console.warn(`${approachName} - 権限不足エラー、次のアプローチを試行`);
+        }
+        break;
+      } else {
+        console.log(`✅ ${approachName} - ページ ${currentPage + 1} のAPIレスポンス成功`);
+        console.log(`📊 ${approachName} - 取得したアイテム数: ${data.data?.items?.length || 0}`);
+        console.log(`📄 ${approachName} - has_more: ${data.data?.has_more}`);
+        console.log(`🔗 ${approachName} - page_token: ${data.data?.page_token || "なし"}`);
+
+        // 生のチャットデータをログ出力
+        if (data.data?.items) {
+          console.log(`🔍 ${approachName} - 生のチャットデータ:`);
+          data.data.items.forEach((chat: any, index: number) => {
+            console.log(
+              `  ${index + 1}. ID: ${chat.chat_id}, Name: "${chat.name}", Type: ${chat.chat_type}, Description: "${chat.description || "なし"}"`
+            );
+
+            // SkillFreak大改修PJを明示的にチェック
+            if (
+              chat.name &&
+              (chat.name.includes("SkillFreak") ||
+                chat.name.includes("大改修") ||
+                chat.name.includes("PJ"))
+            ) {
+              console.log(
+                `🎯 ${approachName} - SkillFreak関連チャットを発見: ${chat.name} (${chat.chat_id})`
+              );
+            }
+          });
+        }
+
+        // APIレスポンスからChatInfo形式に変換
+        const apiChats: ChatInfo[] = (data.data?.items || []).map((chat: any) => {
+          // Chat IDの形式に基づいてchat_typeを決定
+          let chatType = chat.chat_type || "group";
+          if (chat.chat_id && chat.chat_id.startsWith("oc_")) {
+            chatType = "group"; // oc_で始まるIDはグループチャット
+          } else if (chat.chat_id && chat.chat_id.includes("@")) {
+            chatType = "p2p"; // メールアドレス形式は個人チャット
+          } else if (chat.chat_id && chat.chat_id.startsWith("ou_")) {
+            chatType = "p2p"; // ou_で始まるIDは個人チャット
+          }
+
+          const chatInfo = {
+            chat_id: chat.chat_id,
+            name: chat.name || chat.chat_id,
+            description: chat.description,
+            chat_type: chatType,
+            avatar: chat.avatar,
+            is_default: false,
+          };
+
+          console.log(
+            `🔄 ${approachName} - 変換後のチャット情報: ${chatInfo.name} (${chatInfo.chat_id}) - Type: ${chatInfo.chat_type}`
+          );
+
+          return chatInfo;
+        });
+
+        // 重複を避けて追加
+        apiChats.forEach((apiChat) => {
+          const existingChat = chats.find((chat) => chat.chat_id === apiChat.chat_id);
+          if (!existingChat) {
+            chats.push(apiChat);
+            totalFetched++;
+            console.log(
+              `➕ ${approachName} - 新しいチャットを追加: ${apiChat.name} (${apiChat.chat_id})`
+            );
+          } else {
+            console.log(
+              `🔄 ${approachName} - 既存チャット: ${existingChat.name} (${apiChat.chat_id})`
+            );
+          }
+        });
+
+        // 次のページがあるかチェック
+        pageToken = data.data?.page_token || "";
+        hasMore = data.data?.has_more || false;
+        currentPage++;
+
+        console.log(
+          `📄 ${approachName} - ページ ${currentPage}: ${apiChats.length}件のチャットを処理`
+        );
+      }
+    }
+
+    console.log(`✅ ${approachName} - 完了: ${totalFetched}件の新しいチャットを追加`);
+  } catch (error) {
+    console.warn(`${approachName} - チャット一覧取得エラー:`, error);
+  }
+}
+
+// ヘルパー関数: 代替エンドポイントの試行
+async function tryAlternativeEndpoints(
+  token: string,
+  larkDomain: string,
+  chats: ChatInfo[]
+): Promise<void> {
+  // 代替エンドポイント1: チャットメンバー一覧から逆引き
+  try {
+    console.log("🔄 代替アプローチ: Bot情報からチャット検索");
+
+    // Bot自身の情報を取得
+    const botInfoUrl = buildUrl(larkDomain, "/open-apis/bot/v3/info/");
+    const botRes = await fetch(botInfoUrl, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    const botData = await botRes.json();
+    console.log("🤖 Bot情報:", JSON.stringify(botData, null, 2));
+  } catch (error) {
+    console.warn("代替エンドポイント1エラー:", error);
+  }
+
+  // 代替エンドポイント2: 検索API（もし利用可能であれば）
+  try {
+    console.log("🔄 代替アプローチ: 検索APIでSkillFreakを検索");
+
+    const searchUrl = buildUrl(larkDomain, "/open-apis/search/v2/message");
+    const searchRes = await fetch(searchUrl, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        query: "SkillFreak",
+        page_size: 20,
+      }),
+    });
+
+    const searchData = await searchRes.json();
+    console.log("🔍 検索結果:", JSON.stringify(searchData, null, 2));
+  } catch (error) {
+    console.warn("代替エンドポイント2エラー:", error);
+  }
 }
 
 // メッセージ履歴を取得する関数
@@ -675,7 +913,7 @@ export async function getMessages(
       page_size: "10", // 最新10件を取得
     });
 
-    const url = `${larkDomain}/open-apis/im/v1/messages?${params}`;
+    const url = buildUrl(larkDomain, `/open-apis/im/v1/messages?${params}`);
 
     const res = await fetch(url, {
       method: "GET",
@@ -695,5 +933,182 @@ export async function getMessages(
   } catch (error) {
     console.warn("メッセージ取得エラー:", error);
     return [];
+  }
+}
+
+// ===== Lark Tasks API v1.1.0 統合関数 =====
+
+/**
+ * タスク作成とメッセージ送信を統合した関数
+ * タスクを作成し、指定されたチャットに通知メッセージを送信
+ */
+export async function createTaskAndNotify(
+  taskData: {
+    title: string;
+    description?: string;
+    dueDate?: Date;
+    priority?: "low" | "medium" | "high" | "urgent";
+    assigneeId?: string;
+    tasklistGuid?: string;
+    reminderMinutes?: number;
+  },
+  notificationOptions?: {
+    chatId?: string;
+    sendNotification?: boolean;
+    customMessage?: string;
+  },
+  preferences?: Partial<Prefs>
+): Promise<{ task: any; messageId?: string }> {
+  try {
+    // 1. タスクを作成
+    const { createTask } = await import("./api/task-api");
+    const task = await createTask(taskData);
+
+    console.log("✅ タスクが作成されました:", task.summary);
+
+    // 2. 通知メッセージを送信（オプション）
+    let messageId: string | undefined;
+    if (notificationOptions?.sendNotification && notificationOptions.chatId) {
+      const priorityEmoji = {
+        low: "🔵",
+        medium: "⚪",
+        high: "🟡",
+        urgent: "🔴",
+      }[taskData.priority || "medium"];
+
+      const dueDateText = taskData.dueDate
+        ? `\n📅 締切: ${taskData.dueDate.toLocaleDateString("ja-JP")}`
+        : "";
+
+      const assigneeText = taskData.assigneeId ? `\n👤 担当者: ${taskData.assigneeId}` : "";
+
+      const defaultMessage =
+        `${priorityEmoji} **新しいタスクが作成されました**\n\n` +
+        `📝 **${task.summary}**${dueDateText}${assigneeText}\n\n` +
+        `${taskData.description || ""}`;
+
+      const message = notificationOptions.customMessage || defaultMessage;
+
+      try {
+        const token = await getTenantAccessToken();
+        messageId = await sendTextMessage(token, message, notificationOptions.chatId, preferences);
+        console.log("📤 通知メッセージを送信しました");
+      } catch (error) {
+        console.warn("通知メッセージの送信に失敗しました:", error);
+      }
+    }
+
+    return { task, messageId };
+  } catch (error) {
+    console.error("タスク作成エラー:", error);
+    throw error;
+  }
+}
+
+/**
+ * タスクリスト一覧を取得（キャッシュ対応）
+ */
+let tasklistCache: { tasklists: any[]; timestamp: number } | null = null;
+const TASKLIST_CACHE_DURATION = 5 * 60 * 1000; // 5分
+
+export async function getTasklistsWithCache(forceRefresh: boolean = false): Promise<any[]> {
+  // キャッシュチェック
+  if (
+    !forceRefresh &&
+    tasklistCache &&
+    Date.now() - tasklistCache.timestamp < TASKLIST_CACHE_DURATION
+  ) {
+    return tasklistCache.tasklists;
+  }
+
+  try {
+    const { getAllTasklists } = await import("./api/tasklist-api");
+    const tasklists = await getAllTasklists();
+
+    // キャッシュ更新
+    tasklistCache = {
+      tasklists,
+      timestamp: Date.now(),
+    };
+
+    console.log(`📋 ${tasklists.length}個のタスクリストを取得しました`);
+    return tasklists;
+  } catch (error) {
+    console.error("タスクリスト取得エラー:", error);
+    return [];
+  }
+}
+
+/**
+ * ユーザー検索（キャッシュ対応）
+ */
+export async function searchUsersWithCache(query: string, limit: number = 10): Promise<any[]> {
+  try {
+    const { getUserSuggestions } = await import("./api/user-api");
+    const users = await getUserSuggestions(query, limit);
+
+    console.log(`👥 ${users.length}人のユーザーを検索しました`);
+    return users;
+  } catch (error) {
+    console.error("ユーザー検索エラー:", error);
+    return [];
+  }
+}
+
+/**
+ * タスク作成の権限チェック
+ */
+export async function checkTaskPermissions(): Promise<{
+  canCreateTask: boolean;
+  canAccessTasklists: boolean;
+  canSearchUsers: boolean;
+  errors: string[];
+}> {
+  const result = {
+    canCreateTask: false,
+    canAccessTasklists: false,
+    canSearchUsers: false,
+    errors: [] as string[],
+  };
+
+  try {
+    // アクセストークンの取得テスト
+    const token = await getTenantAccessToken();
+    if (!token) {
+      result.errors.push("アクセストークンの取得に失敗しました");
+      return result;
+    }
+
+    // タスクリスト取得テスト
+    try {
+      const { getTasklists } = await import("./api/tasklist-api");
+      await getTasklists(1); // 1件だけ取得してテスト
+      result.canAccessTasklists = true;
+    } catch (error) {
+      result.errors.push(`タスクリストアクセス権限なし: ${error}`);
+    }
+
+    // ユーザー検索テスト
+    try {
+      const { getCurrentUser } = await import("./api/user-api");
+      await getCurrentUser();
+      result.canSearchUsers = true;
+    } catch (error) {
+      result.errors.push(`ユーザー検索権限なし: ${error}`);
+    }
+
+    // タスク作成権限は、タスクリストアクセスができれば基本的に可能
+    result.canCreateTask = result.canAccessTasklists;
+
+    if (result.errors.length === 0) {
+      console.log("✅ すべてのタスク機能の権限チェックが完了しました");
+    } else {
+      console.warn("⚠️ 一部の機能で権限エラーがあります:", result.errors);
+    }
+
+    return result;
+  } catch (error) {
+    result.errors.push(`権限チェック中にエラーが発生しました: ${error}`);
+    return result;
   }
 }

@@ -146,7 +146,8 @@ export default function MessageHistoryManager() {
   };
 
   // メッセージ内容を短縮
-  const truncateMessage = (content: string, maxLength: number = 100) => {
+  const truncateMessage = (content: string | undefined | null, maxLength: number = 100) => {
+    if (!content) return "メッセージなし";
     if (content.length <= maxLength) return content;
     return content.substring(0, maxLength) + "...";
   };

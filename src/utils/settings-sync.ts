@@ -26,7 +26,7 @@ export async function suggestSettingsToPreferences(): Promise<string> {
       ]);
 
     // Extension Preferences用の設定テキストを生成
-    const settingsText = `Lark Quick Memo - 設定値一覧
+    const settingsText = `FlashLarkPost - 設定値一覧
 
 Lark Domain: ${larkDomain || "https://open.larksuite.com"}
 App ID: ${appId || "(未設定)"}

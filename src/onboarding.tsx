@@ -116,8 +116,8 @@ export default function OnboardingWizard() {
       const token = await getTenantAccessToken(testPrefs);
       const testMessage =
         state.language === "ja"
-          ? "🎉 Lark Quick Memo セットアップ完了！\nおめでとうございます。正常に動作しています。"
-          : "🎉 Lark Quick Memo Setup Complete!\nCongratulations! Everything is working correctly.";
+          ? "🎉 FlashLarkPost セットアップ完了！\nおめでとうございます。正常に動作しています。"
+          : "🎉 FlashLarkPost Setup Complete!\nCongratulations! Everything is working correctly.";
       // タイムスタンプなしで送信
       const decoratedMessage = testMessage;
 
@@ -190,7 +190,16 @@ export default function OnboardingWizard() {
           icon="🇯🇵"
           actions={
             <ActionPanel>
-              <Action title={t.japanese} onAction={() => selectLanguage("ja")} />
+              <Action title={`${t.japanese}で続行`} onAction={() => selectLanguage("ja")} />
+              <ActionPanel.Section title="設定">
+                <Action
+                  title="⚙️ Extension Preferencesを開く"
+                  shortcut={{ modifiers: ["cmd"], key: "," }}
+                  onAction={async () => {
+                    await openExtensionPreferences();
+                  }}
+                />
+              </ActionPanel.Section>
             </ActionPanel>
           }
         />
@@ -200,7 +209,16 @@ export default function OnboardingWizard() {
           icon="🇺🇸"
           actions={
             <ActionPanel>
-              <Action title={t.english} onAction={() => selectLanguage("en")} />
+              <Action title={`Continue in ${t.english}`} onAction={() => selectLanguage("en")} />
+              <ActionPanel.Section title="Settings">
+                <Action
+                  title="⚙️ Extension Preferencesを開く"
+                  shortcut={{ modifiers: ["cmd"], key: "," }}
+                  onAction={async () => {
+                    await openExtensionPreferences();
+                  }}
+                />
+              </ActionPanel.Section>
             </ActionPanel>
           }
         />
@@ -217,7 +235,7 @@ ${t.welcomeDesc}
 
 ## ✨ ${t.features}
 
-- **${t.featureQuick}**: ${t.featureQuickDesc}
+- **${t.featureAttachment}**: ${t.featureAttachmentDesc}
 - **${t.featureTimestamp}**: ${t.featureTimestampDesc}
 - **${t.featureGlobal}**: ${t.featureGlobalDesc}
 - **${t.featureSecure}**: ${t.featureSecureDesc}
@@ -236,6 +254,15 @@ ${t.readyQuestion}`}
           <ActionPanel>
             <Action title={t.startSetup} onAction={nextStep} />
             <Action title={t.setupLater} onAction={pop} />
+            <ActionPanel.Section title="設定">
+              <Action
+                title="⚙️ Extension Preferencesを開く"
+                shortcut={{ modifiers: ["cmd"], key: "," }}
+                onAction={async () => {
+                  await openExtensionPreferences();
+                }}
+              />
+            </ActionPanel.Section>
           </ActionPanel>
         }
       />
@@ -279,6 +306,15 @@ ${t.allDoneQuestion}`}
           <ActionPanel>
             <Action title={t.completed} onAction={nextStep} />
             <Action title={t.back} onAction={prevStep} />
+            <ActionPanel.Section title="設定">
+              <Action
+                title="⚙️ Extension Preferencesを開く"
+                shortcut={{ modifiers: ["cmd"], key: "," }}
+                onAction={async () => {
+                  await openExtensionPreferences();
+                }}
+              />
+            </ActionPanel.Section>
           </ActionPanel>
         }
       />
@@ -309,6 +345,15 @@ ${t.allDoneQuestion}`}
               }}
             />
             <Action title={t.back} onAction={prevStep} />
+            <ActionPanel.Section title="設定">
+              <Action
+                title="⚙️ Extension Preferencesを開く"
+                shortcut={{ modifiers: ["cmd"], key: "," }}
+                onAction={async () => {
+                  await openExtensionPreferences();
+                }}
+              />
+            </ActionPanel.Section>
           </ActionPanel>
         }
       >
@@ -372,6 +417,15 @@ ${t.allDoneQuestion}`}
               }}
             />
             <Action title={t.back} onAction={prevStep} />
+            <ActionPanel.Section title="設定">
+              <Action
+                title="⚙️ Extension Preferencesを開く"
+                shortcut={{ modifiers: ["cmd"], key: "," }}
+                onAction={async () => {
+                  await openExtensionPreferences();
+                }}
+              />
+            </ActionPanel.Section>
           </ActionPanel>
         }
       >
@@ -462,6 +516,15 @@ ${t.readyToTest}
                 });
               }}
             />
+            <ActionPanel.Section title="設定">
+              <Action
+                title="⚙️ Extension Preferencesを開く"
+                shortcut={{ modifiers: ["cmd"], key: "," }}
+                onAction={async () => {
+                  await openExtensionPreferences();
+                }}
+              />
+            </ActionPanel.Section>
           </ActionPanel>
         }
       />
@@ -520,12 +583,15 @@ ${t.completeDesc}
                 }, 3000);
               }}
             />
-            <Action
-              title="⚙️ Extension Preferencesを開く"
-              onAction={async () => {
-                await openExtensionPreferences();
-              }}
-            />
+            <ActionPanel.Section title="設定">
+              <Action
+                title="⚙️ Extension Preferencesを開く"
+                shortcut={{ modifiers: ["cmd"], key: "," }}
+                onAction={async () => {
+                  await openExtensionPreferences();
+                }}
+              />
+            </ActionPanel.Section>
             <Action
               title="🔑 App IDをコピー"
               onAction={async () => {

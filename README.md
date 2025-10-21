@@ -1,11 +1,11 @@
-# Lark Quick Memo
+# FlashLarkPost
 
-📨 A powerful Raycast extension for sending quick memos to Lark/Feishu with advanced features. Supports file attachments, templates, message history, and multiple chat destinations.
+📨 A powerful Raycast extension for sending quick memos to Lark/Feishu. Supports file attachments, templates, message history, and multiple chat destinations.
 
 ## ✨ Features
 
 ### 🚀 Core Features
-- **One-Action Memo**: Send text to Lark with just `Cmd+Shift+M` → type → `Cmd+Enter`
+- **One-Action Memo**: Send text to Lark with just `Cmd+Shift+M` → type → `Cmd+Shift+Enter`
 - **File Attachments**: Upload images, documents, and videos with native file picker
 - **Template System**: Create, manage, and use custom message templates with categories
 - **Message History**: View, search, and manage your sent messages with statistics
@@ -63,7 +63,7 @@
 
 1. Press `Cmd+Shift+M` to launch Quick Memo
 2. Type a test message
-3. Press `Cmd+Enter` to send
+3. Press `Cmd+Shift+Enter` to send
 4. Check your Lark DMs for the message
 
 ## 📖 Usage Guide
@@ -71,7 +71,7 @@
 ### 🚀 Quick Memo
 1. **Launch**: Press `Cmd+Shift+M` or search "Quick Memo" in Raycast
 2. **Type**: Enter your message in the text area
-3. **Send**: Press `Cmd+Enter` or click the Send button
+3. **Send**: Press `Cmd+Shift+Enter` or click the Send button
 4. **Destination**: Use the dropdown to select chat destination (DM, group, bot)
 
 ### 📎 File Attachments
@@ -133,9 +133,8 @@ Raycast Extension → Lark Open API
 lark-quick-memo/
 ├── package.json              # Raycast extension config
 ├── tsconfig.json             # TypeScript config
-├── FEATURE_ROADMAP.md        # Development roadmap
 └── src/
-    ├── quick-memo.tsx        # Main UI component with all features
+    ├── quick-memo.tsx        # Main UI component
     ├── lark.ts              # Lark API client (auth, messages, files)
     ├── utils.ts             # Utilities (timestamp, retry, validation)
     ├── template-manager.tsx  # Template management system

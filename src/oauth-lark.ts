@@ -1,5 +1,13 @@
 import { getPreferenceValues, OAuth } from "@raycast/api";
 
+// URL構築のヘルパー関数
+function buildUrl(domain: string, path: string): string {
+  if (domain.startsWith("https://") || domain.startsWith("http://")) {
+    return `${domain}${path}`;
+  }
+  return `https://${domain}${path}`;
+}
+
 type Prefs = {
   larkDomain: string;
   appId: string;
@@ -20,7 +28,7 @@ export async function authorize(): Promise<void> {
   const { larkDomain, appId } = getPreferenceValues<Prefs>();
 
   const authRequest = await client.authorizationRequest({
-    endpoint: `${larkDomain}/open-apis/authen/v1/authorize`,
+    endpoint: buildUrl(larkDomain, "/open-apis/authen/v1/authorize"),
     clientId: appId,
     scope: "im:message:send_as_user contact:user.id:readonly",
   });
@@ -32,7 +40,7 @@ export async function authorize(): Promise<void> {
 async function exchangeCodeForTokens(code: string): Promise<void> {
   const { larkDomain, appId, appSecret } = getPreferenceValues<Prefs>();
 
-  const response = await fetch(`${larkDomain}/open-apis/authen/v1/oidc/access_token`, {
+  const response = await fetch(buildUrl(larkDomain, "/open-apis/authen/v1/oidc/access_token"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -71,18 +79,21 @@ export async function sendUserMessage(text: string): Promise<void> {
   const token = await getUserAccessToken();
   const { larkDomain, receiveId } = getPreferenceValues<Prefs>();
 
-  const response = await fetch(`${larkDomain}/open-apis/im/v1/messages?receive_id_type=user_id`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      receive_id: receiveId,
-      msg_type: "text",
-      content: JSON.stringify({ text }),
-    }),
-  });
+  const response = await fetch(
+    buildUrl(larkDomain, "/open-apis/im/v1/messages?receive_id_type=user_id"),
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        receive_id: receiveId,
+        msg_type: "text",
+        content: JSON.stringify({ text }),
+      }),
+    }
+  );
 
   const data: any = await response.json();
   if (!response.ok || data.code !== 0) {

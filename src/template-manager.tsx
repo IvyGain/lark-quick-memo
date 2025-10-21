@@ -224,9 +224,11 @@ export default function TemplateManager() {
           {categoryTemplates.map((template) => (
             <List.Item
               key={template.id}
-              title={template.name}
+              title={template.name || "テンプレート名なし"}
               subtitle={
-                template.content.slice(0, 100) + (template.content.length > 100 ? "..." : "")
+                template.content
+                  ? template.content.slice(0, 100) + (template.content.length > 100 ? "..." : "")
+                  : ""
               }
               icon={template.isPreset ? "🔧" : "📝"}
               accessories={[{ text: template.isPreset ? "プリセット" : "カスタム" }]}
