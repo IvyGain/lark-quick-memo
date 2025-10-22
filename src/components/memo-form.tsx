@@ -219,15 +219,19 @@ export default function MemoForm({ language }: MemoFormProps) {
   // カスタムチャット読み込み
   const loadCustomChats = async () => {
     try {
+      console.log("🔍 [DEBUG] loadCustomChats: 開始");
       const chats = await CustomChatManager.getCustomChats();
+      console.log("🔍 [DEBUG] loadCustomChats: 取得したカスタムチャット数:", chats.length);
+      console.log("🔍 [DEBUG] loadCustomChats: カスタムチャット詳細:", chats);
       setCustomChats(chats);
+      console.log("🔍 [DEBUG] loadCustomChats: setCustomChats完了");
       console.log(`📋 ${chats.length}件のカスタムチャットを読み込みました`);
 
       // デフォルトbotの名前を更新（カスタムチャットからbotタイプを探す）
       // 注意: LarkCastがアプリ名なので、webhookタイプのbotが見つかってもLarkCastを維持
       const customBot = chats.find((chat) => chat.type === "webhook");
       if (customBot && defaultBotName === "LarkCast") {
-        // webhookタイプのbotが見つかった場合でも、アプリ名「LarkCast」を維持
+        // webhookタイプのbotが見つかった場合でも、アプリ名「LarkCast」を維持します
         console.log(
           `🤖 webhookタイプのbot「${customBot.name}」が見つかりましたが、アプリ名「LarkCast」を維持します`
         );
@@ -748,20 +752,29 @@ export default function MemoForm({ language }: MemoFormProps) {
           <Form.Dropdown.Item key="default-bot" value="bot" title={defaultBotName} icon="🤖" />
         </Form.Dropdown.Section>
 
-        {/* カスタムチャット（webhookタイプ以外のみ表示） */}
+        {/* カスタムチャット（全タイプ表示） */}
         {(() => {
-          const nonWebhookCustomChats = customChats.filter((chat) => chat.type !== "webhook");
+          console.log("🔍 [DEBUG] カスタムチャット表示: 全カスタムチャット数:", customChats.length);
+          console.log("🔍 [DEBUG] カスタムチャット表示: webhookタイプ以外の数:", customChats.filter((chat) => chat.type !== "webhook").length);
+          console.log("🔍 [DEBUG] カスタムチャット表示: フィルタリング後のカスタムチャット:", customChats);
+          
           return (
-            nonWebhookCustomChats.length > 0 && (
+            customChats.length > 0 && (
               <Form.Dropdown.Section
-                title={`⭐ カスタムチャット (${nonWebhookCustomChats.length}件)`}
+                title={`⭐ カスタムチャット (${customChats.length}件)`}
               >
-                {nonWebhookCustomChats.map((chat) => (
+                {customChats.map((chat) => (
                   <Form.Dropdown.Item
                     key={chat.id}
                     value={chat.id}
                     title={chat.name}
-                    icon={chat.type === "group" ? "👥" : "👤"}
+                    icon={
+                      chat.type === "webhook" 
+                        ? "🔗" 
+                        : chat.type === "group" 
+                        ? "👥" 
+                        : "👤"
+                    }
                   />
                 ))}
               </Form.Dropdown.Section>
